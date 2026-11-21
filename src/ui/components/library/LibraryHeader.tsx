@@ -42,7 +42,7 @@ export const LibraryHeader = memo(function LibraryHeader({
   onOpenSettings,
 }: LibraryHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 flex-wrap gap-3 app-header-bar">
+    <header className="sticky top-safe z-20 flex-wrap gap-3 app-header-bar">
       <div className="flex items-center">
         <SegmentedControl
           options={tabOptions}

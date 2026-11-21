@@ -30,7 +30,15 @@ function AppShell() {
 
   return (
     <>
+      <div
+        aria-hidden="true"
+        className="fixed top-0 inset-x-0 z-40 h-safe-top bg-canvas pointer-events-none"
+      />
       <AppRouter />
+      <div
+        aria-hidden="true"
+        className="fixed bottom-0 inset-x-0 z-40 h-safe-bottom bg-canvas pointer-events-none"
+      />
       {__ENABLE_CLOUD_SYNC__ && <CloudSyncOverlay />}
       <TransitionOverlay
         isVisible={startup.isOverlayVisible}

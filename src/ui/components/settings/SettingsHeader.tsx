@@ -7,7 +7,7 @@ export interface SettingsHeaderProps {
 
 export const SettingsHeader = memo(function SettingsHeader({ onBack }: SettingsHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 app-header-bar">
+    <header className="sticky top-safe z-20 app-header-bar">
       <div className="flex items-center gap-3">
         <Button
           variant="outline"

@@ -21,7 +21,7 @@ export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeader
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-40 app-header-bar transition-all duration-300 ease-in-out ${
+      className={`fixed top-safe inset-x-0 z-40 app-header-bar transition-all duration-300 ease-in-out ${
         isChromeVisible
           ? 'translate-y-0 opacity-100'
           : '-translate-y-full opacity-0 pointer-events-none'

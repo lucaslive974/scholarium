@@ -158,17 +158,21 @@
 }
 
 /* Mobile Safe-Area Insets & Semantic Layout Groups */
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-tx-main);
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
 @utility app-page-shell {
   @apply min-h-screen bg-canvas text-tx-main flex flex-col font-sans;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @utility app-header-bar {
-  @apply flex items-center justify-between border-b border-line-subtle/70 bg-canvas/85 backdrop-blur-md;
-  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
-  padding-bottom: 0.75rem;
-  padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
-  padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+  @apply flex items-center justify-between border-b border-line-subtle/70 bg-canvas/85 px-6 py-3 backdrop-blur-md;
 }
 
 @utility floating-panel {
@@ -205,6 +209,43 @@
 
 @utility safe-left-4 {
   left: calc(1rem + env(safe-area-inset-left, 0px));
+}
+
+@utility p-safe {
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+@utility pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+@utility top-safe {
+  top: env(safe-area-inset-top, 0px);
+}
+
+@utility bottom-safe {
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility h-safe-top {
+  height: env(safe-area-inset-top, 0px);
+}
+
+@utility h-safe-bottom {
+  height: env(safe-area-inset-bottom, 0px);
 }
 
 /* Reveal overlay controls on hover/focus when a fine pointer is present; always visible on touch */
