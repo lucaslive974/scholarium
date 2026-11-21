@@ -1,4 +1,3 @@
-use super::commands as sync;
 use crate::state::{AppStorage, BackendState};
 use crate::sync_scheduler::{empty_status, load_configured_interval_secs, SyncSchedulerHandle};
 use scholarium_core::adapters::backup::CloudBackupDestination;
@@ -70,25 +69,49 @@ pub fn configure(
         backend_state.cloud_sync.sync_dirty.clone(),
     );
     let bg_scheduler = sync_scheduler.clone();
+    let builder = attach_mobile_deep_link_plugin(builder);
 
     builder.manage(sync_scheduler).setup(move |app| {
-        use tauri_plugin_deep_link::DeepLinkExt;
         bg_scheduler.spawn_background_loop(app.handle().clone());
-
-        if let Ok(Some(urls)) = app.deep_link().get_current() {
-            for url in urls {
-                sync::handle_oauth_callback_url(app.handle(), url.as_str());
-            }
-        }
-        let deep_link_app = app.handle().clone();
-        app.deep_link().on_open_url(move |event| {
-            for url in event.urls() {
-                sync::handle_oauth_callback_url(&deep_link_app, url.as_str());
-            }
-        });
+        setup_mobile_deep_link(app);
         Ok(())
     })
 }
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn attach_mobile_deep_link_plugin(
+    builder: tauri::Builder<tauri::Wry>,
+) -> tauri::Builder<tauri::Wry> {
+    builder.plugin(tauri_plugin_deep_link::init())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn attach_mobile_deep_link_plugin(
+    builder: tauri::Builder<tauri::Wry>,
+) -> tauri::Builder<tauri::Wry> {
+    builder
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn setup_mobile_deep_link(app: &tauri::App) {
+    use super::commands as sync;
+    use tauri_plugin_deep_link::DeepLinkExt;
+
+    if let Ok(Some(urls)) = app.deep_link().get_current() {
+        for url in urls {
+            sync::handle_oauth_callback_url(app.handle(), url.as_str());
+        }
+    }
+    let deep_link_app = app.handle().clone();
+    app.deep_link().on_open_url(move |event| {
+        for url in event.urls() {
+            sync::handle_oauth_callback_url(&deep_link_app, url.as_str());
+        }
+    });
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn setup_mobile_deep_link(_app: &tauri::App) {}
 
 pub fn remote_backup_destination(storage: &AppStorage) -> Option<Arc<dyn BackupDestination>> {
     storage

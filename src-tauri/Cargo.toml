@@ -14,7 +14,12 @@ tauri-build = { version = "2", features = [] }
 
 [features]
 default = []
-cloud-sync = ["scholarium-core/cloud-sync", "dep:tiny_http", "dep:url"]
+cloud-sync = [
+  "scholarium-core/cloud-sync",
+  "dep:tiny_http",
+  "dep:url",
+  "dep:tauri-plugin-deep-link",
+]
 
 [dependencies]
 scholarium-core = { path = "crates/scholarium-core" }
@@ -23,10 +28,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
 tauri-plugin-dialog = "2"
-tauri-plugin-deep-link = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-opener = "2"
 url = { version = "2", optional = true }
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-deep-link = { version = "2", optional = true }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
