@@ -43,7 +43,7 @@ export const BooksGrid = memo(function BooksGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 landscape-compact-grid gap-3 sm:gap-5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 landscape-compact-grid gap-3 sm:gap-4">
       {books.map((book) => (
         <BookCard
           key={book.bookHash}
