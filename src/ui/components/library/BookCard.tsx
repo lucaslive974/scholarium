@@ -67,7 +67,7 @@ function BookCardQuickActions({
   }
 
   return (
-    <div className="absolute top-2 right-2 flex items-center gap-1 hover-reveal transition-opacity duration-150 p-0.5 rounded-md cover-overlay-chip shadow-xs">
+    <div className="absolute top-2 right-2 flex flex-col sm:flex-row items-center gap-1 hover-reveal transition-opacity duration-150 p-0.5 rounded-md cover-overlay-chip shadow-xs">
       {canEvictLocal && onEvictBook && (
         <IconButton
           variant="ghost"
