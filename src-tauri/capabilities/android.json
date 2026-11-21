@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "android",
+  "description": "Android-only permissions for Scholarium",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": ["scholarium-android:default"]
+}

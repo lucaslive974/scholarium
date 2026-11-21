@@ -13,6 +13,11 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init());
 
+    #[cfg(target_os = "android")]
+    {
+        builder = builder.plugin(tauri_plugin_scholarium_android::init());
+    }
+
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {

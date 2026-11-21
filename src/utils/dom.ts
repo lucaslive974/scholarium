@@ -120,3 +120,18 @@ export function getDevicePixelRatio(fallback = 1): number {
 export function getWindowSelection(): Selection | null {
   return hasWindow() && typeof window.getSelection === 'function' ? window.getSelection() : null;
 }
+
+/**
+ * Synchronizes Android system bar icon appearance with the active theme when running on mobile.
+ */
+export async function syncMobileSystemBars(isDark: boolean): Promise<void> {
+  if (!__IS_MOBILE__ || !hasWindow()) {
+    return;
+  }
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('plugin:scholarium-android|set_system_bars', { isDark });
+  } catch {
+    // Ignore when running outside a Tauri mobile runtime (e.g., tests or browser preview)
+  }
+}

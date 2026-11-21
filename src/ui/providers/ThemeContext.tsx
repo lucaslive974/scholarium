@@ -1,4 +1,4 @@
-import { isBrowser, useIsomorphicLayoutEffect } from '@utils/dom';
+import { isBrowser, syncMobileSystemBars, useIsomorphicLayoutEffect } from '@utils/dom';
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 
 export type ThemeMode = 'light' | 'dark';
@@ -50,6 +50,7 @@ export function ThemeProvider({ children, initialTheme }: ThemeProviderProps) {
       root.classList.remove('dark');
     }
     window.localStorage.setItem(STORAGE_KEY, theme);
+    void syncMobileSystemBars(theme === 'dark');
   }, [theme]);
 
   const setTheme = useCallback((mode: ThemeMode) => {
