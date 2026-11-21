@@ -127,12 +127,12 @@ describe('useReaderZoom logic', () => {
         height: 2000,
       });
 
-      expect(wrapperStyle.width).toBe('min(calc(100vw - 2rem), 48rem)');
+      expect(wrapperStyle.width).toBe('min(calc(100vw - 2rem), 60vw)');
       expect(wrapperStyle.height).toBeUndefined();
       expect(contentStyle.transform).toBeUndefined();
       expect(contentStyle.willChange).toBeUndefined();
       expect(contentStyle.transformOrigin).toBe('top left');
-      expect(contentStyle.width).toBe('min(calc(100vw - 2rem), 48rem)');
+      expect(contentStyle.width).toBe('min(calc(100vw - 2rem), 60vw)');
     });
 
     it('returns GPU scale and scaled spacer dimensions when zoomed', () => {
@@ -146,7 +146,7 @@ describe('useReaderZoom logic', () => {
       expect(contentStyle.transform).toBe('scale(1.5)');
       expect(contentStyle.willChange).toBe('transform');
       expect(contentStyle.transformOrigin).toBe('top left');
-      expect(contentStyle.width).toBe('min(calc(100vw - 2rem), 42rem)');
+      expect(contentStyle.width).toBe('min(calc(100vw - 2rem), 60vw)');
     });
   });
 });

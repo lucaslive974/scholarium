@@ -105,11 +105,11 @@ export function calculateFocalScrollDelta({
  * Pure helper computing the outer scroll-spacer style and GPU-scaled content style.
  */
 export function computeZoomViewportStyles(
-  isPdf: boolean,
+  _isPdf: boolean,
   zoomLevel: number,
   baseSize: ZoomViewportDimensions
 ): { readonly wrapperStyle: CSSProperties; readonly contentStyle: CSSProperties } {
-  const baseWidthCss = isPdf ? 'min(calc(100vw - 2rem), 48rem)' : 'min(calc(100vw - 2rem), 42rem)';
+  const baseWidthCss = 'min(calc(100vw - 2rem), 60vw)';
   const isScaled = zoomLevel !== 1;
 
   const wrapperStyle: CSSProperties = {
