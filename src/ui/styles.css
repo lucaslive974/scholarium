@@ -262,6 +262,14 @@ body {
   }
 }
 
+@utility books-auto-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
 /* Compact library grid & cover height for short landscape viewports (e.g. phones in landscape) */
 @utility landscape-compact-cover {
   @media (max-height: 520px) {

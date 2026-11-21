@@ -1,7 +1,7 @@
 import { useCloudSyncListener } from '@hooks/useCloudSync';
 import type { CloudSyncState } from '@ports/ISyncService';
 import { useSyncStore } from '@stores/useSyncStore';
-import { CheckIcon, CloudIcon } from '@ui';
+import { CloudCheckIcon, CloudIcon } from '@ui';
 import { hasDocument } from '@utils/dom';
 import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -71,7 +71,7 @@ export const CloudSyncOverlay = memo(function CloudSyncOverlay() {
       className={`fixed safe-bottom-4 safe-left-4 z-30 pointer-events-none inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.7rem] font-medium cover-overlay-chip shadow-md transition-opacity duration-300 ${toneClass}`}
     >
       {phase === 'synced' ? (
-        <CheckIcon className="h-3.5 w-3.5 shrink-0" />
+        <CloudCheckIcon className="h-3.5 w-3.5 shrink-0" />
       ) : (
         <CloudIcon
           className={`h-3.5 w-3.5 shrink-0 ${phase === 'syncing' ? 'animate-pulse' : ''}`}
