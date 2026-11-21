@@ -65,5 +65,15 @@
         "role": "Viewer"
       }
     ]
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        {
+          "scheme": ["com.scholarium.reader"],
+          "path": ["/oauth2redirect"]
+        }
+      ]
+    }
   }
 }
