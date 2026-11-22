@@ -1,5 +1,7 @@
 use crate::state::{AppStorage, BackendState};
-use crate::sync_scheduler::{empty_status, load_configured_interval_secs, SyncSchedulerHandle};
+use crate::sync_scheduler::{
+    empty_status, load_configured_interval_secs, SyncDirtySignal, SyncSchedulerHandle,
+};
 use scholarium_core::adapters::backup::CloudBackupDestination;
 use scholarium_core::adapters::cloud::{
     AuthenticatedHttpTransport, FileCloudCredentialStore, GoogleDriveAppDataAdapter,
@@ -9,7 +11,6 @@ use scholarium_core::core::domain::AppStoragePaths;
 use scholarium_core::core::ports::{
     BackupDestination, CloudAuthProvider, CloudStorageProvider, PlatformEnvironment,
 };
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 pub struct PendingGoogleOAuth {
@@ -18,7 +19,7 @@ pub struct PendingGoogleOAuth {
 }
 
 pub struct CloudSyncState {
-    pub sync_dirty: Arc<AtomicBool>,
+    pub sync_dirty: SyncDirtySignal,
     pub credential_store: Arc<FileCloudCredentialStore>,
     pub cloud_auth: Option<Arc<GoogleOAuthPkceAdapter>>,
     pub pending_oauth: Option<PendingGoogleOAuth>,
@@ -45,7 +46,7 @@ impl CloudSyncState {
         }
 
         Self {
-            sync_dirty: Arc::new(AtomicBool::new(false)),
+            sync_dirty: SyncDirtySignal::default(),
             credential_store,
             cloud_auth,
             pending_oauth: None,
@@ -53,7 +54,7 @@ impl CloudSyncState {
     }
 
     pub fn mark_dirty(&self) {
-        self.sync_dirty.store(true, Ordering::SeqCst);
+        self.sync_dirty.mark_dirty();
     }
 }
 
@@ -117,6 +118,32 @@ pub fn remote_backup_destination(storage: &AppStorage) -> Option<Arc<dyn BackupD
     storage
         .remote()
         .map(|cloud| Arc::new(CloudBackupDestination::new(cloud)) as Arc<dyn BackupDestination>)
+}
+
+/// Wakes the async sync scheduler to flush any pending sync before exiting.
+/// Returns `true` if exit should be deferred until the flush completes.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub fn flush_dirty_sync_before_exit(app: &tauri::AppHandle) -> bool {
+    use tauri::Manager;
+
+    let Some(scheduler) = app.try_state::<SyncSchedulerHandle>() else {
+        return false;
+    };
+    let Some(backend) = app.try_state::<std::sync::Mutex<BackendState>>() else {
+        return false;
+    };
+
+    let is_connected = backend
+        .lock()
+        .ok()
+        .and_then(|g| g.storage.remote())
+        .is_some();
+    is_connected && scheduler.request_shutdown_flush()
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub fn flush_dirty_sync_before_exit(_app: &tauri::AppHandle) -> bool {
+    false
 }
 
 fn restore_google_session(

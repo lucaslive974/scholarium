@@ -14,6 +14,9 @@ mod noop;
 pub mod oauth_loopback;
 
 #[cfg(feature = "cloud-sync")]
-pub use enabled::{configure, remote_backup_destination, CloudSyncState, PendingGoogleOAuth};
+pub use enabled::{
+    configure, flush_dirty_sync_before_exit, remote_backup_destination, CloudSyncState,
+    PendingGoogleOAuth,
+};
 #[cfg(not(feature = "cloud-sync"))]
-pub use noop::{configure, remote_backup_destination, CloudSyncState};
+pub use noop::{configure, flush_dirty_sync_before_exit, remote_backup_destination, CloudSyncState};

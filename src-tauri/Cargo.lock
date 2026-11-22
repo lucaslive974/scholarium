@@ -3350,6 +3350,7 @@ dependencies = [
  "tauri-plugin-scholarium-android",
  "tauri-plugin-single-instance",
  "tiny_http",
+ "tokio",
  "tracing",
  "url",
 ]

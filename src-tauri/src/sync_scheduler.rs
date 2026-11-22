@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
+use tokio::sync::Notify;
 
 pub const SYNC_STATUS_EVENT: &str = "sync:status";
 pub const SYNC_INTERVAL_CONFIG_KEY: &str = "cloud_sync_interval_secs";
@@ -42,15 +43,81 @@ pub struct CloudSyncStatusDto {
     pub available_providers: Vec<CloudProviderDto>,
 }
 
+#[derive(Default)]
+struct DirtyState {
+    count: usize,
+    last_marked_at: Option<Instant>,
+}
+
+/// Shared dirty-change counter + async wakeup signal for `SyncSchedulerHandle`.
+///
+/// Counts spaced local mutations (at least `MARK_COOLDOWN` apart once pending) and wakes
+/// the background loop early once `BATCH_THRESHOLD` changes accumulate.
+#[derive(Clone, Default)]
+pub struct SyncDirtySignal {
+    state: Arc<Mutex<DirtyState>>,
+    notify: Arc<Notify>,
+}
+
+impl SyncDirtySignal {
+    pub const BATCH_THRESHOLD: usize = 5;
+    pub const MARK_COOLDOWN: Duration = Duration::from_secs(5);
+
+    pub fn mark_dirty(&self) {
+        let should_notify = {
+            let Ok(mut state) = self.state.lock() else {
+                return;
+            };
+            let now = Instant::now();
+            if state.count > 0 {
+                if let Some(last) = state.last_marked_at {
+                    if now.duration_since(last) < Self::MARK_COOLDOWN {
+                        return;
+                    }
+                }
+            }
+            state.count += 1;
+            state.last_marked_at = Some(now);
+            state.count >= Self::BATCH_THRESHOLD
+        };
+        if should_notify {
+            self.notify.notify_one();
+        }
+    }
+
+    pub fn has_pending(&self) -> bool {
+        self.state.lock().map(|s| s.count > 0).unwrap_or(false)
+    }
+
+    pub fn take_pending(&self) -> bool {
+        let Ok(mut state) = self.state.lock() else {
+            return false;
+        };
+        let had_pending = state.count > 0;
+        state.count = 0;
+        state.last_marked_at = None;
+        had_pending
+    }
+
+    pub fn notify(&self) {
+        self.notify.notify_one();
+    }
+
+    pub async fn notified(&self) {
+        self.notify.notified().await;
+    }
+}
+
 /// Backend-owned synchronization scheduler handle.
 ///
-/// Manages cheap periodic ETag polling, write debouncing (`mark_dirty`), single-flight
-/// concurrency protection, and reactive `sync:status` event emission to the frontend.
+/// Manages cheap periodic ETag polling, batched write debouncing (`SyncDirtySignal`),
+/// single-flight concurrency protection, and reactive `sync:status` event emission.
 #[derive(Clone)]
 pub struct SyncSchedulerHandle {
     interval_secs: Arc<AtomicU64>,
-    dirty: Arc<AtomicBool>,
+    dirty: SyncDirtySignal,
     syncing: Arc<AtomicBool>,
+    shutting_down: Arc<AtomicBool>,
     last_status: Arc<Mutex<CloudSyncStatusDto>>,
 }
 
@@ -58,18 +125,30 @@ impl SyncSchedulerHandle {
     pub fn new(
         initial_interval_secs: u64,
         initial_status: CloudSyncStatusDto,
-        dirty: Arc<AtomicBool>,
+        dirty: SyncDirtySignal,
     ) -> Self {
         Self {
             interval_secs: Arc::new(AtomicU64::new(initial_interval_secs)),
             dirty,
             syncing: Arc::new(AtomicBool::new(false)),
+            shutting_down: Arc::new(AtomicBool::new(false)),
             last_status: Arc::new(Mutex::new(initial_status)),
         }
     }
 
     pub fn mark_dirty(&self) {
-        self.dirty.store(true, Ordering::SeqCst);
+        self.dirty.mark_dirty();
+    }
+
+    /// Signals the async scheduler loop to flush any pending sync and exit the app.
+    /// Returns `true` if a pending or in-flight sync should complete before exiting.
+    pub fn request_shutdown_flush(&self) -> bool {
+        self.shutting_down.store(true, Ordering::SeqCst);
+        let needs_flush = self.dirty.has_pending() || self.syncing.load(Ordering::SeqCst);
+        if needs_flush {
+            self.dirty.notify();
+        }
+        needs_flush
     }
 
     pub fn interval_secs(&self) -> u64 {
@@ -108,25 +187,51 @@ impl SyncSchedulerHandle {
         });
     }
 
-    /// Starts the backend-owned background polling/debounce loop.
+    /// Starts the backend-owned async polling/debounce loop on Tauri's async runtime.
     pub fn spawn_background_loop(&self, app: tauri::AppHandle) {
         let handle = self.clone();
-        std::thread::spawn(move || {
+        tauri::async_runtime::spawn(async move {
             let mut last_poll = Instant::now();
-            loop {
-                std::thread::sleep(Duration::from_secs(DEFAULT_SYNC_INTERVAL_SECS));
 
-                let is_dirty = handle.dirty.swap(false, Ordering::SeqCst);
-                if is_dirty {
-                    let _ = handle.run_sync_now(&app);
-                    last_poll = Instant::now();
-                    continue;
+            loop {
+                let interval = handle.interval_secs();
+                let wait_secs = match interval {
+                    0 => DEFAULT_SYNC_INTERVAL_SECS,
+                    n => n.min(DEFAULT_SYNC_INTERVAL_SECS),
+                };
+
+                if !handle.shutting_down.load(Ordering::SeqCst) {
+                    let _ = tokio::time::timeout(
+                        Duration::from_secs(wait_secs),
+                        handle.dirty.notified(),
+                    )
+                    .await;
                 }
 
-                let interval = handle.interval_secs();
-                if interval > 0 && last_poll.elapsed() >= Duration::from_secs(interval) {
-                    let _ = handle.check_and_sync_if_remote_changed(&app);
+                let is_shutting_down = handle.shutting_down.load(Ordering::SeqCst);
+                let is_dirty = handle.dirty.take_pending();
+                let should_poll = !is_shutting_down
+                    && interval > 0
+                    && last_poll.elapsed() >= Duration::from_secs(interval);
+
+                if is_dirty || should_poll {
+                    let task_app = app.clone();
+                    let task_handle = handle.clone();
+                    let _ = tauri::async_runtime::spawn_blocking(move || match is_dirty {
+                        true => {
+                            let _ = task_handle.run_sync_now(&task_app);
+                        }
+                        false => {
+                            let _ = task_handle.check_and_sync_if_remote_changed(&task_app);
+                        }
+                    })
+                    .await;
                     last_poll = Instant::now();
+                }
+
+                if is_shutting_down {
+                    app.exit(0);
+                    break;
                 }
             }
         });
@@ -169,6 +274,7 @@ impl SyncSchedulerHandle {
             return Err("Cloud synchronization is already in progress".to_string());
         }
 
+        let _ = self.dirty.take_pending();
         let result = self.execute_sync_guarded(app);
         self.syncing.store(false, Ordering::SeqCst);
         result

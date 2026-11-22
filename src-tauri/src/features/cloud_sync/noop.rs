@@ -24,3 +24,7 @@ pub fn configure(
 pub fn remote_backup_destination(_storage: &AppStorage) -> Option<Arc<dyn BackupDestination>> {
     None
 }
+
+pub fn flush_dirty_sync_before_exit(_app: &tauri::AppHandle) -> bool {
+    false
+}

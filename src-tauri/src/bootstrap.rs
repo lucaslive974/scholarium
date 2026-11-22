@@ -98,8 +98,60 @@ pub fn run() {
             sync::evict_local_book,
             sync::clear_cloud_sync_data,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run({
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            let exit_sync_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            move |app_handle, event| {
+                #[cfg(not(any(target_os = "android", target_os = "ios")))]
+                handle_desktop_run_event(app_handle, &event, &exit_sync_started);
+                #[cfg(any(target_os = "android", target_os = "ios"))]
+                let _ = (app_handle, event);
+            }
+        });
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn handle_desktop_run_event(
+    app_handle: &tauri::AppHandle,
+    event: &tauri::RunEvent,
+    exit_sync_started: &std::sync::atomic::AtomicBool,
+) {
+    match event {
+        tauri::RunEvent::WindowEvent {
+            event: tauri::WindowEvent::CloseRequested { api, .. },
+            ..
+        } => defer_exit_for_sync(app_handle, exit_sync_started, true, || api.prevent_close()),
+        tauri::RunEvent::ExitRequested { api, .. } => {
+            defer_exit_for_sync(app_handle, exit_sync_started, false, || api.prevent_exit())
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn defer_exit_for_sync(
+    app_handle: &tauri::AppHandle,
+    exit_sync_started: &std::sync::atomic::AtomicBool,
+    prevent_if_already_started: bool,
+    prevent: impl FnOnce(),
+) {
+    use std::sync::atomic::Ordering;
+
+    if exit_sync_started.load(Ordering::SeqCst) {
+        if prevent_if_already_started {
+            prevent();
+        }
+        return;
+    }
+    if crate::features::cloud_sync::flush_dirty_sync_before_exit(app_handle) {
+        exit_sync_started.store(true, Ordering::SeqCst);
+        prevent();
+        for (_, window) in app_handle.webview_windows() {
+            let _ = window.hide();
+        }
+    }
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
