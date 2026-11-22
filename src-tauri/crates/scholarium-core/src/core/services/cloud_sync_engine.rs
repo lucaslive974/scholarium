@@ -422,6 +422,7 @@ where
             self.book_repo.delete_book(book_hash)?;
             let _ = self.highlight_repo.delete_by_book(book_hash);
             let _ = self.storage.delete_book_cover(book_hash);
+            let _ = self.storage.delete_book_binary(book_hash);
             self.report.deleted_books += 1;
         }
 

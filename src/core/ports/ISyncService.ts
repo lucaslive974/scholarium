@@ -20,6 +20,7 @@ export interface CloudSyncStatus {
   readonly lastRevision: number;
   readonly lastPulledBooks: number;
   readonly lastPushedBooks: number;
+  readonly lastDeletedBooks?: number;
   readonly lastError: string | null;
   readonly availableProviders: readonly CloudProviderDescriptor[];
 }

@@ -219,7 +219,10 @@ export function useCloudSyncListener(): void {
         if (nextStatus.connected) {
           useSyncStore.getState().setPendingAuthUrl(null);
         }
-        if (nextStatus.state === 'synced' && nextStatus.lastPulledBooks > 0) {
+        if (
+          nextStatus.state === 'synced' &&
+          (nextStatus.lastPulledBooks > 0 || (nextStatus.lastDeletedBooks ?? 0) > 0)
+        ) {
           void rehydrateSyncedStores(libraryService, highlightService, syncService);
         }
       });
@@ -234,7 +237,7 @@ export function useCloudSyncListener(): void {
     const handleVisibilityChange = () => {
       if (hasDocument() && !document.hidden) {
         void syncService.notifyAppResumed().then((report) => {
-          if (active && report && report.pulledBooks > 0) {
+          if (active && report && (report.pulledBooks > 0 || report.deletedBooks > 0)) {
             void rehydrateSyncedStores(libraryService, highlightService, syncService);
           }
         });

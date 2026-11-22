@@ -37,6 +37,7 @@ pub struct CloudSyncStatusDto {
     pub last_revision: u64,
     pub last_pulled_books: usize,
     pub last_pushed_books: usize,
+    pub last_deleted_books: usize,
     pub last_error: Option<String>,
     pub available_providers: Vec<CloudProviderDto>,
 }
@@ -228,6 +229,7 @@ impl SyncSchedulerHandle {
                         s.last_revision = report.revision;
                         s.last_pulled_books = report.pulled_books;
                         s.last_pushed_books = report.pushed_books;
+                        s.last_deleted_books = report.deleted_books;
                         s.last_error = None;
                     });
                 }
@@ -310,6 +312,7 @@ pub fn empty_status(interval_secs: u64, backend: &BackendState) -> CloudSyncStat
         last_revision: cursor.last_revision,
         last_pulled_books: 0,
         last_pushed_books: 0,
+        last_deleted_books: 0,
         last_error: None,
         available_providers: available_providers_for_platform(backend.platform_env.platform_kind()),
     };

@@ -490,6 +490,7 @@ fn propagates_highlight_and_book_deletions_via_tombstones() {
         .unwrap();
     assert_eq!(mobile_rep.deleted_books, 1);
     assert!(mobile.book_repo.find_book_by_hash(hash).unwrap().is_none());
+    assert!(!mobile.storage.has_book_binary(hash).unwrap());
 }
 
 #[test]
