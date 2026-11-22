@@ -491,6 +491,33 @@ fn propagates_highlight_and_book_deletions_via_tombstones() {
     assert_eq!(mobile_rep.deleted_books, 1);
     assert!(mobile.book_repo.find_book_by_hash(hash).unwrap().is_none());
     assert!(!mobile.storage.has_book_binary(hash).unwrap());
+
+    // Re-importing the previously deleted book on PC resurrects it and syncs back to Mobile.
+    pc.book_repo
+        .save_book(make_book(hash, "Phaedo", 1, 4_000))
+        .unwrap();
+    engine
+        .sync_once(
+            &mut pc.book_repo,
+            &mut pc.highlight_repo,
+            &mut pc.storage,
+            &mut pc.config,
+            &cloud,
+            4_100,
+        )
+        .unwrap();
+    let mobile_reimport = engine
+        .sync_once(
+            &mut mobile.book_repo,
+            &mut mobile.highlight_repo,
+            &mut mobile.storage,
+            &mut mobile.config,
+            &cloud,
+            4_200,
+        )
+        .unwrap();
+    assert_eq!(mobile_reimport.pulled_books, 1);
+    assert!(mobile.book_repo.find_book_by_hash(hash).unwrap().is_some());
 }
 
 #[test]

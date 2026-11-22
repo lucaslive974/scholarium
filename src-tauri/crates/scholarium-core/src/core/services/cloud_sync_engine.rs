@@ -413,7 +413,10 @@ where
         let local_is_newer = local_book
             .map(|b| b.updated_at_ms > deleted_at)
             .unwrap_or(false);
-        if local_is_newer {
+        let remote_is_newer = remote_entry
+            .map(|e| !e.is_deleted() && e.updated_at_ms > deleted_at)
+            .unwrap_or(false);
+        if local_is_newer || remote_is_newer {
             self.cursor.deleted_books.remove(book_hash);
             return Ok(None);
         }
