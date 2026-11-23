@@ -107,12 +107,7 @@ export async function executeImportBackup(
 
 export interface UseBackupReturn {
   readonly backups: readonly BackupArtifact[];
-  readonly isLoading: boolean;
-  readonly isCreating: boolean;
-  readonly isRestoring: boolean;
-  readonly uploadingBackupId: string | null;
-  readonly exportingBackupId: string | null;
-  readonly deletingBackupId: string | null;
+  readonly backupState: BackupState;
   readonly uploadToCloud: boolean;
   readonly pendingRestoreId: string | null;
   readonly statusMessage: string | null;
@@ -130,61 +125,123 @@ export interface UseBackupReturn {
   importBackup(): Promise<void>;
 }
 
+export type BackupState =
+  | { readonly status: 'idle' }
+  | { readonly status: 'loading' }
+  | { readonly status: 'creating' }
+  | { readonly status: 'restoring' }
+  | { readonly status: 'uploading'; readonly backupId: string }
+  | { readonly status: 'exporting'; readonly backupId: string }
+  | { readonly status: 'deleting'; readonly backupId: string };
+
+export type ActiveBackupState = Exclude<BackupState, { status: 'idle' }>;
+
+export function isBackupBusy(state: BackupState): boolean {
+  return state.status === 'creating' || state.status === 'restoring';
+}
+
+export function isBackupStatus(state: BackupState, status: BackupState['status']): boolean {
+  return state.status === status;
+}
+
+export function isBackupActiveFor(
+  state: BackupState,
+  status: 'uploading' | 'exporting' | 'deleting',
+  backupId: string
+): boolean {
+  return state.status === status && state.backupId === backupId;
+}
+
+export interface BackupOperationState {
+  readonly state: BackupState;
+  readonly statusMessage: string | null;
+  readonly error: string | null;
+}
+
+const INITIAL_OPERATION_STATE: BackupOperationState = {
+  state: { status: 'idle' },
+  statusMessage: null,
+  error: null,
+};
+
 export function useBackup(): UseBackupReturn {
   const { backupService, libraryService, highlightService } = useServiceContainer();
   const setBooks = useLibraryStore((s) => s.setBooks);
   const setHighlights = useHighlightStore((s) => s.setHighlights);
-
   const [backups, setBackups] = useState<readonly BackupArtifact[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [uploadingBackupId, setUploadingBackupId] = useState<string | null>(null);
-  const [exportingBackupId, setExportingBackupId] = useState<string | null>(null);
-  const [deletingBackupId, setDeletingBackupId] = useState<string | null>(null);
   const [uploadToCloud, setUploadToCloud] = useState(false);
   const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [opState, setOpState] = useState<BackupOperationState>(INITIAL_OPERATION_STATE);
 
-  const refreshBackups = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const list = await backupService.listLocalBackups();
-      setBackups(list);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appLogger.warn(`Failed to list local backups: ${msg}`, 'backup');
-      setError(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [backupService]);
+  const runOperation = useCallback(
+    async (
+      nextState: ActiveBackupState,
+      logErrorPrefix: string,
+      action: () => Promise<string | undefined>,
+      clearStatus = false,
+      logLevel: 'error' | 'warn' = 'error'
+    ) => {
+      setOpState((prev) => ({
+        state: nextState,
+        error: null,
+        statusMessage: clearStatus ? null : prev.statusMessage,
+      }));
+      try {
+        const statusMessage = await action();
+        setOpState((prev) => ({
+          ...prev,
+          state: { status: 'idle' },
+          statusMessage: statusMessage ?? prev.statusMessage,
+        }));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        appLogger[logLevel](`${logErrorPrefix}: ${msg}`, 'backup');
+        setOpState((prev) => ({
+          ...prev,
+          state: { status: 'idle' },
+          error: msg,
+        }));
+      }
+    },
+    []
+  );
+
+  const refreshBackups = useCallback(
+    () =>
+      runOperation(
+        { status: 'loading' },
+        'Failed to list local backups',
+        async () => {
+          setBackups(await backupService.listLocalBackups());
+          return undefined;
+        },
+        false,
+        'warn'
+      ),
+    [backupService, runOperation]
+  );
 
   useEffect(() => {
     void refreshBackups();
   }, [refreshBackups]);
 
-  const createBackup = useCallback(async () => {
-    setIsCreating(true);
-    setError(null);
-    setStatusMessage(null);
-    try {
-      const result = await executeCreateBackup(backupService, uploadToCloud);
-      setStatusMessage(formatBackupReportSummary('Backup created', result.report));
-      await refreshBackups();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appLogger.error(`Failed to create local backup: ${msg}`, 'backup');
-      setError(msg);
-    } finally {
-      setIsCreating(false);
-    }
-  }, [backupService, refreshBackups, uploadToCloud]);
+  const createBackup = useCallback(
+    () =>
+      runOperation(
+        { status: 'creating' },
+        'Failed to create local backup',
+        async () => {
+          const result = await executeCreateBackup(backupService, uploadToCloud);
+          setBackups(await backupService.listLocalBackups());
+          return formatBackupReportSummary('Backup created', result.report);
+        },
+        true
+      ),
+    [backupService, runOperation, uploadToCloud]
+  );
 
   const requestRestore = useCallback((backupId: string) => {
     setPendingRestoreId(backupId);
-    setError(null);
   }, []);
 
   const cancelRestore = useCallback(() => {
@@ -192,161 +249,126 @@ export function useBackup(): UseBackupReturn {
   }, []);
 
   const confirmRestore = useCallback(
-    async (backupId: string) => {
-      setIsRestoring(true);
-      setError(null);
-      setStatusMessage(null);
-      try {
-        const report = await executeRestoreBackup({
-          backupId,
-          backupService,
-          libraryService,
-          highlightService,
-          setBooks,
-          setHighlights,
-        });
-        setPendingRestoreId(null);
-        setStatusMessage(formatBackupReportSummary('Backup restored', report));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        appLogger.error(`Failed to restore backup ${backupId}: ${msg}`, 'backup');
-        setError(msg);
-      } finally {
-        setIsRestoring(false);
-      }
-    },
-    [backupService, highlightService, libraryService, setBooks, setHighlights]
+    (backupId: string) =>
+      runOperation(
+        { status: 'restoring' },
+        `Failed to restore backup ${backupId}`,
+        async () => {
+          const report = await executeRestoreBackup({
+            backupId,
+            backupService,
+            libraryService,
+            highlightService,
+            setBooks,
+            setHighlights,
+          });
+          setPendingRestoreId(null);
+          return formatBackupReportSummary('Backup restored', report);
+        },
+        true
+      ),
+    [backupService, highlightService, libraryService, runOperation, setBooks, setHighlights]
   );
 
   const deleteBackup = useCallback(
-    async (backupId: string) => {
-      setDeletingBackupId(backupId);
-      setError(null);
-      try {
-        await backupService.deleteLocalBackup(backupId);
-        if (pendingRestoreId === backupId) {
-          setPendingRestoreId(null);
+    (backupId: string) =>
+      runOperation(
+        { status: 'deleting', backupId },
+        `Failed to delete backup ${backupId}`,
+        async () => {
+          await backupService.deleteLocalBackup(backupId);
+          setPendingRestoreId((curr) => (curr === backupId ? null : curr));
+          setBackups(await backupService.listLocalBackups());
+          return undefined;
         }
-        await refreshBackups();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        appLogger.error(`Failed to delete backup ${backupId}: ${msg}`, 'backup');
-        setError(msg);
-      } finally {
-        setDeletingBackupId(null);
-      }
-    },
-    [backupService, pendingRestoreId, refreshBackups]
+      ),
+    [backupService, runOperation]
   );
 
   const uploadBackupToCloud = useCallback(
-    async (backupId: string) => {
-      setUploadingBackupId(backupId);
-      setError(null);
-      setStatusMessage(null);
-      try {
-        await backupService.uploadBackupToCloud(backupId);
-        setStatusMessage(`Uploaded backup ${backupId} to cloud`);
-        await refreshBackups();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        appLogger.error(`Failed to upload backup ${backupId}: ${msg}`, 'backup');
-        setError(msg);
-      } finally {
-        setUploadingBackupId(null);
-      }
-    },
-    [backupService, refreshBackups]
+    (backupId: string) =>
+      runOperation(
+        { status: 'uploading', backupId },
+        `Failed to upload backup ${backupId}`,
+        async () => {
+          await backupService.uploadBackupToCloud(backupId);
+          setBackups(await backupService.listLocalBackups());
+          return `Uploaded backup ${backupId} to cloud`;
+        },
+        true
+      ),
+    [backupService, runOperation]
   );
 
   const deleteRemoteBackup = useCallback(
-    async (backupId: string) => {
-      setDeletingBackupId(backupId);
-      setError(null);
-      try {
-        await backupService.deleteRemoteBackup(backupId);
-        if (pendingRestoreId === backupId) {
-          setPendingRestoreId(null);
+    (backupId: string) =>
+      runOperation(
+        { status: 'deleting', backupId },
+        `Failed to delete remote backup ${backupId}`,
+        async () => {
+          await backupService.deleteRemoteBackup(backupId);
+          setPendingRestoreId((curr) => (curr === backupId ? null : curr));
+          setBackups(await backupService.listLocalBackups());
+          return undefined;
         }
-        await refreshBackups();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        appLogger.error(`Failed to delete remote backup ${backupId}: ${msg}`, 'backup');
-        setError(msg);
-      } finally {
-        setDeletingBackupId(null);
-      }
-    },
-    [backupService, pendingRestoreId, refreshBackups]
+      ),
+    [backupService, runOperation]
   );
 
   const exportBackup = useCallback(
-    async (backupId: string) => {
-      setExportingBackupId(backupId);
-      setError(null);
-      try {
-        const exportedPath = await backupService.exportLocalBackup(backupId);
-        if (exportedPath) {
-          setStatusMessage(`Backup exported to ${exportedPath}`);
+    (backupId: string) =>
+      runOperation(
+        { status: 'exporting', backupId },
+        `Failed to export backup ${backupId}`,
+        async () => {
+          const exportedPath = await backupService.exportLocalBackup(backupId);
+          return exportedPath ? `Backup exported to ${exportedPath}` : undefined;
         }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        appLogger.error(`Failed to export backup ${backupId}: ${msg}`, 'backup');
-        setError(msg);
-      } finally {
-        setExportingBackupId(null);
-      }
-    },
-    [backupService]
+      ),
+    [backupService, runOperation]
   );
 
-  const importBackup = useCallback(async () => {
-    setIsRestoring(true);
-    setError(null);
-    setStatusMessage(null);
-    try {
-      const report = await executeImportBackup({
-        backupService,
-        libraryService,
-        highlightService,
-        setBooks,
-        setHighlights,
-        uploadToCloud,
-      });
-      if (report) {
-        setPendingRestoreId(null);
-        setStatusMessage(formatBackupReportSummary('Backup imported', report));
-        await refreshBackups();
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appLogger.error(`Failed to import backup: ${msg}`, 'backup');
-      setError(msg);
-    } finally {
-      setIsRestoring(false);
-    }
-  }, [
-    backupService,
-    highlightService,
-    libraryService,
-    refreshBackups,
-    setBooks,
-    setHighlights,
-    uploadToCloud,
-  ]);
+  const importBackup = useCallback(
+    () =>
+      runOperation(
+        { status: 'restoring' },
+        'Failed to import backup',
+        async () => {
+          const report = await executeImportBackup({
+            backupService,
+            libraryService,
+            highlightService,
+            setBooks,
+            setHighlights,
+            uploadToCloud,
+          });
+          if (!report) {
+            return undefined;
+          }
+          setPendingRestoreId(null);
+          setBackups(await backupService.listLocalBackups());
+          return formatBackupReportSummary('Backup imported', report);
+        },
+        true
+      ),
+    [
+      backupService,
+      highlightService,
+      libraryService,
+      runOperation,
+      setBooks,
+      setHighlights,
+      uploadToCloud,
+    ]
+  );
 
   return {
     backups,
-    isLoading,
-    isCreating,
-    isRestoring,
-    uploadingBackupId,
-    exportingBackupId,
-    deletingBackupId,
+    backupState: opState.state,
     uploadToCloud,
     pendingRestoreId,
-    statusMessage,
-    error,
+    statusMessage: opState.statusMessage,
+    error: opState.error,
     setUploadToCloud,
     refreshBackups,
     createBackup,

@@ -1,7 +1,11 @@
 import {
+  type BackupState,
   formatBackupDeviceLabel,
   formatBackupPlatform,
   formatBackupSize,
+  isBackupActiveFor,
+  isBackupBusy,
+  isBackupStatus,
   type UseBackupReturn,
   useBackup,
 } from '@hooks/useBackup';
@@ -85,13 +89,9 @@ function BackupRestoreConfirmation({
 
 interface BackupArtifactRowProps {
   readonly backup: BackupArtifact;
+  readonly backupState: BackupState;
   readonly isCloudConnected: boolean;
   readonly isConfirming: boolean;
-  readonly isBusy: boolean;
-  readonly isRestoring: boolean;
-  readonly isUploading: boolean;
-  readonly isExporting: boolean;
-  readonly isDeleting: boolean;
   readonly onRequestRestore: (backupId: string) => void;
   readonly onConfirmRestore: (backupId: string) => void;
   readonly onCancelRestore: () => void;
@@ -103,13 +103,9 @@ interface BackupArtifactRowProps {
 
 function BackupArtifactRow({
   backup,
+  backupState,
   isCloudConnected,
   isConfirming,
-  isBusy,
-  isRestoring,
-  isUploading,
-  isExporting,
-  isDeleting,
   onRequestRestore,
   onConfirmRestore,
   onCancelRestore,
@@ -122,6 +118,11 @@ function BackupArtifactRow({
   const locationBadge = resolveLocationBadge(location);
   const canUpload = __ENABLE_CLOUD_SYNC__ && isCloudConnected && location === 'local';
   const canRemoveRemote = __ENABLE_CLOUD_SYNC__ && isCloudConnected && location === 'both';
+  const isBusy = isBackupBusy(backupState);
+  const isRestoring = isBackupStatus(backupState, 'restoring');
+  const isUploading = isBackupActiveFor(backupState, 'uploading', backup.id);
+  const isExporting = isBackupActiveFor(backupState, 'exporting', backup.id);
+  const isDeleting = isBackupActiveFor(backupState, 'deleting', backup.id);
 
   return (
     <Card variant="subtle" padding="sm" rounded="lg" className="flex flex-col gap-3">
@@ -216,12 +217,7 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
 
   const {
     backups,
-    isLoading,
-    isCreating,
-    isRestoring,
-    uploadingBackupId,
-    exportingBackupId,
-    deletingBackupId,
+    backupState,
     uploadToCloud,
     pendingRestoreId,
     statusMessage,
@@ -238,7 +234,9 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
     deleteRemoteBackup,
   } = injectedState ?? hookState;
 
-  const isBusy = isCreating || isRestoring;
+  const isLoading = isBackupStatus(backupState, 'loading');
+  const isCreating = isBackupStatus(backupState, 'creating');
+  const isBusy = isBackupBusy(backupState);
 
   return (
     <Card variant="surface" padding="md" className="flex flex-col gap-4">
@@ -304,13 +302,9 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
             <BackupArtifactRow
               key={backup.id}
               backup={backup}
+              backupState={backupState}
               isCloudConnected={isCloudConnected}
               isConfirming={pendingRestoreId === backup.id}
-              isBusy={isBusy}
-              isRestoring={isRestoring}
-              isUploading={uploadingBackupId === backup.id}
-              isExporting={exportingBackupId === backup.id}
-              isDeleting={deletingBackupId === backup.id}
               onRequestRestore={requestRestore}
               onConfirmRestore={(id) => void confirmRestore(id)}
               onCancelRestore={cancelRestore}

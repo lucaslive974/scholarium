@@ -13,12 +13,7 @@ function renderBackupSection(
   const mock = new MockBackend();
   const fullState: UseBackupReturn = {
     backups: [],
-    isLoading: false,
-    isCreating: false,
-    isRestoring: false,
-    uploadingBackupId: null,
-    exportingBackupId: null,
-    deletingBackupId: null,
+    backupState: { status: 'idle' },
     uploadToCloud: false,
     pendingRestoreId: null,
     statusMessage: null,
