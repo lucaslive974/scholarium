@@ -1,4 +1,5 @@
 import type { LibraryTabId } from '@providers/NavigationContext';
+import { useTheme } from '@providers/ThemeContext';
 import {
   Button,
   IconButton,
@@ -23,8 +24,6 @@ export interface LibraryHeaderProps {
   readonly onImportClick: () => void;
   readonly onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   readonly fileInputRef: RefObject<HTMLInputElement | null>;
-  readonly theme: string;
-  readonly onToggleTheme: () => void;
   readonly onOpenSettings: () => void;
 }
 
@@ -37,10 +36,10 @@ export const LibraryHeader = memo(function LibraryHeader({
   onImportClick,
   onFileChange,
   fileInputRef,
-  theme,
-  onToggleTheme,
   onOpenSettings,
 }: LibraryHeaderProps) {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <header className="sticky top-safe z-20 flex-wrap gap-3 app-header-bar">
       <div className="flex items-center">
@@ -85,7 +84,7 @@ export const LibraryHeader = memo(function LibraryHeader({
           variant="ghost"
           size="sm"
           label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          onClick={onToggleTheme}
+          onClick={toggleTheme}
         >
           {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
         </IconButton>

@@ -3,7 +3,6 @@ import { executeDownloadRemoteBook, executeEvictLocalBook } from '@hooks/useClou
 import { useLibrary } from '@hooks/useLibrary';
 import { type LibraryTabId, useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
-import { useTheme } from '@providers/ThemeContext';
 import { useSyncStore } from '@stores/useSyncStore';
 import { appLogger } from '@utils/logger';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
@@ -30,7 +29,6 @@ export function LibraryView({
 }: LibraryViewProps = {}) {
   const library = useLibrary();
   const navigation = useNavigation();
-  const { theme, toggleTheme } = useTheme();
   const { presenceService, syncService } = useServiceContainer();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,8 +128,6 @@ export function LibraryView({
         onImportClick={handleOpenFileInput}
         onFileChange={handleFileChange}
         fileInputRef={fileInputRef}
-        theme={theme}
-        onToggleTheme={toggleTheme}
         onOpenSettings={onOpenSettings}
       />
 
