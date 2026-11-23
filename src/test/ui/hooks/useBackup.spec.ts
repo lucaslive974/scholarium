@@ -1,20 +1,20 @@
-import type { BookMetadata } from '@domain/BookMetadata';
-import { Highlight } from '@domain/Highlight';
-import { BookFormat } from '@domain/types';
 import {
   executeCreateBackup,
   executeImportBackup,
   executeRestoreBackup,
+} from '@actions/backupActions';
+import type { BookMetadata } from '@domain/BookMetadata';
+import { Highlight } from '@domain/Highlight';
+import { BookFormat } from '@domain/types';
+import { isBackupActiveFor, isBackupBusy, isBackupStatus } from '@hooks/useBackup';
+import { useHighlightStore } from '@stores/useHighlightStore';
+import { useLibraryStore } from '@stores/useLibraryStore';
+import {
   formatBackupDeviceLabel,
   formatBackupPlatform,
   formatBackupReportSummary,
   formatBackupSize,
-  isBackupActiveFor,
-  isBackupBusy,
-  isBackupStatus,
-} from '@hooks/useBackup';
-import { useHighlightStore } from '@stores/useHighlightStore';
-import { useLibraryStore } from '@stores/useLibraryStore';
+} from '@utils/backupFormatting';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
