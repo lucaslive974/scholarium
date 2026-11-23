@@ -109,6 +109,26 @@ struct GoogleTokenResponse {
     refresh_token: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct GoogleTokenErrorResponse {
+    error: Option<String>,
+}
+
+struct TokenRequestError {
+    message: String,
+    is_invalid_grant: bool,
+}
+
+fn is_invalid_grant_response(status: u16, body: &[u8]) -> bool {
+    if status != 400 && status != 401 {
+        return false;
+    }
+    serde_json::from_slice::<GoogleTokenErrorResponse>(body)
+        .ok()
+        .and_then(|parsed| parsed.error)
+        .is_some_and(|code| code == "invalid_grant")
+}
+
 /// Google OAuth2 PKCE adapter implementing `CloudAuthProvider` using `drive.appdata` scope.
 pub struct GoogleOAuthPkceAdapter {
     config: GoogleOAuthConfig,
@@ -163,7 +183,7 @@ impl GoogleOAuthPkceAdapter {
             params.push(("client_secret", secret.as_str()));
         }
 
-        let token_res = self.request_token(&params)?;
+        let token_res = self.request_token(&params).map_err(|e| e.message)?;
         let refresh_token = token_res
             .refresh_token
             .ok_or_else(|| "Google OAuth response did not include a refresh_token".to_string())?;
@@ -197,7 +217,15 @@ impl GoogleOAuthPkceAdapter {
             params.push(("client_secret", secret.as_str()));
         }
 
-        let token_res = self.request_token(&params)?;
+        let token_res = match self.request_token(&params) {
+            Ok(res) => res,
+            Err(err) => {
+                if err.is_invalid_grant {
+                    let _ = self.credentials.delete_secret(GOOGLE_DRIVE_PROVIDER_ID);
+                }
+                return Err(err.message);
+            }
+        };
         let expires_at_ms = now_ms.saturating_add(token_res.expires_in.saturating_mul(1_000));
         let updated = GoogleStoredCredentials {
             access_token: token_res.access_token.clone(),
@@ -215,29 +243,43 @@ impl GoogleOAuthPkceAdapter {
         })
     }
 
-    fn request_token(&self, params: &[(&str, &str)]) -> Result<GoogleTokenResponse, String> {
+    fn request_token(
+        &self,
+        params: &[(&str, &str)],
+    ) -> Result<GoogleTokenResponse, TokenRequestError> {
         let body = encode_form_params(params).into_bytes();
-        let response = self.http.send(HttpRequest {
-            method: HttpMethod::Post,
-            url: GOOGLE_TOKEN_ENDPOINT.to_string(),
-            headers: vec![(
-                "Content-Type".to_string(),
-                "application/x-www-form-urlencoded".to_string(),
-            )],
-            body,
-            timeout: None,
-        })?;
+        let response = self
+            .http
+            .send(HttpRequest {
+                method: HttpMethod::Post,
+                url: GOOGLE_TOKEN_ENDPOINT.to_string(),
+                headers: vec![(
+                    "Content-Type".to_string(),
+                    "application/x-www-form-urlencoded".to_string(),
+                )],
+                body,
+                timeout: None,
+            })
+            .map_err(|message| TokenRequestError {
+                message,
+                is_invalid_grant: false,
+            })?;
 
         if !(200..300).contains(&response.status) {
             let msg = String::from_utf8_lossy(&response.body);
-            return Err(format!(
-                "Google OAuth token request failed ({}): {msg}",
-                response.status
-            ));
+            return Err(TokenRequestError {
+                message: format!(
+                    "Google OAuth token request failed ({}): {msg}",
+                    response.status
+                ),
+                is_invalid_grant: is_invalid_grant_response(response.status, &response.body),
+            });
         }
 
-        serde_json::from_slice(&response.body)
-            .map_err(|e| format!("Invalid Google OAuth token JSON: {e}"))
+        serde_json::from_slice(&response.body).map_err(|e| TokenRequestError {
+            message: format!("Invalid Google OAuth token JSON: {e}"),
+            is_invalid_grant: false,
+        })
     }
 
     fn load_stored(&self) -> Result<Option<GoogleStoredCredentials>, String> {

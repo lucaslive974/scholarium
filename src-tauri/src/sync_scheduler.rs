@@ -338,7 +338,7 @@ impl SyncSchedulerHandle {
             )
         })();
 
-        if let Ok(guard) = state.lock() {
+        if let Ok(mut guard) = state.lock() {
             match &sync_result {
                 Ok(report) => {
                     let _ = guard.logger.log(LogEntry::new(
@@ -364,6 +364,16 @@ impl SyncSchedulerHandle {
                     });
                 }
                 Err(err) => {
+                    let session_disconnected = guard
+                        .cloud_sync
+                        .cloud_auth
+                        .as_ref()
+                        .and_then(|auth| auth.session().ok())
+                        .is_some_and(|session| !session.connected);
+                    if session_disconnected {
+                        guard.storage.set_remote(None);
+                        guard.cloud_sync.cloud_auth = None;
+                    }
                     let _ = guard.logger.log(LogEntry::new(
                         now_ms,
                         LogLevel::Error,
