@@ -85,6 +85,21 @@ impl SyncDirtySignal {
         }
     }
 
+    /// Marks pending local changes and wakes the background scheduler immediately,
+    /// bypassing `BATCH_THRESHOLD` and `MARK_COOLDOWN`.
+    pub fn mark_dirty_and_notify(&self) {
+        {
+            let Ok(mut state) = self.state.lock() else {
+                return;
+            };
+            if state.count == 0 {
+                state.count = 1;
+            }
+            state.last_marked_at = Some(Instant::now());
+        }
+        self.notify.notify_one();
+    }
+
     pub fn has_pending(&self) -> bool {
         self.state.lock().map(|s| s.count > 0).unwrap_or(false)
     }
@@ -138,6 +153,15 @@ impl SyncSchedulerHandle {
 
     pub fn mark_dirty(&self) {
         self.dirty.mark_dirty();
+    }
+
+    /// Marks pending sync state, transitions status to `"syncing"`, and wakes the background loop immediately.
+    pub fn request_immediate_sync(&self) {
+        if let Ok(mut status) = self.last_status.lock() {
+            status.state = "syncing".to_string();
+            status.last_error = None;
+        }
+        self.dirty.mark_dirty_and_notify();
     }
 
     /// Signals the async scheduler loop to flush any pending sync and exit the app.
@@ -449,4 +473,77 @@ fn refresh_connection_fields(
     dto.connected = false;
     dto.provider_id = None;
     dto.account_label = None;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_status(interval_secs: u64) -> CloudSyncStatusDto {
+        CloudSyncStatusDto {
+            state: "idle".to_string(),
+            connected: false,
+            provider_id: None,
+            account_label: None,
+            interval_secs,
+            last_synced_at_ms: None,
+            last_revision: 0,
+            last_pulled_books: 0,
+            last_pushed_books: 0,
+            last_deleted_books: 0,
+            last_error: None,
+            available_providers: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn mark_dirty_below_threshold_does_not_notify_immediately() {
+        let signal = SyncDirtySignal::default();
+        signal.mark_dirty();
+        assert!(signal.has_pending());
+
+        let woke = tauri::async_runtime::block_on(async {
+            tokio::time::timeout(Duration::from_millis(20), signal.notified())
+                .await
+                .is_ok()
+        });
+        assert!(!woke);
+    }
+
+    #[test]
+    fn mark_dirty_and_notify_wakes_even_within_cooldown_and_below_threshold() {
+        let signal = SyncDirtySignal::default();
+        signal.mark_dirty();
+        signal.mark_dirty_and_notify();
+
+        assert!(signal.has_pending());
+        let woke = tauri::async_runtime::block_on(async {
+            tokio::time::timeout(Duration::from_millis(50), signal.notified())
+                .await
+                .is_ok()
+        });
+        assert!(woke);
+        assert!(signal.take_pending());
+        assert!(!signal.has_pending());
+    }
+
+    #[test]
+    fn request_immediate_sync_sets_syncing_and_wakes_scheduler_signal() {
+        let dirty = SyncDirtySignal::default();
+        let scheduler = SyncSchedulerHandle::new(300, test_status(300), dirty.clone());
+
+        scheduler.request_immediate_sync();
+
+        assert!(dirty.has_pending());
+        let status = scheduler.last_status.lock().expect("status lock");
+        assert_eq!(status.state, "syncing");
+        assert_eq!(status.last_error, None);
+        drop(status);
+        let woke = tauri::async_runtime::block_on(async {
+            tokio::time::timeout(Duration::from_millis(50), dirty.notified())
+                .await
+                .is_ok()
+        });
+        assert!(woke);
+    }
 }

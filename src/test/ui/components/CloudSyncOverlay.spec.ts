@@ -1,5 +1,5 @@
 import { NoopSyncService } from '@adapters/ipc/NoopSyncService';
-import { CloudSyncOverlay, resolveSyncBadgePhase } from '@components/CloudSyncOverlay';
+import { badgeReducer, CloudSyncOverlay } from '@components/CloudSyncOverlay';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import { useSyncStore } from '@stores/useSyncStore';
 import React from 'react';
@@ -12,12 +12,25 @@ describe('CloudSyncOverlay', () => {
     useSyncStore.getState().reset();
   });
 
-  it('resolves badge phase transitions cleanly', () => {
-    expect(resolveSyncBadgePhase('syncing', false)).toBe('syncing');
-    expect(resolveSyncBadgePhase('synced', true)).toBe('synced');
-    expect(resolveSyncBadgePhase('error', true)).toBe('error');
-    expect(resolveSyncBadgePhase('synced', false)).toBe('hidden');
-    expect(resolveSyncBadgePhase('idle', false)).toBe('hidden');
+  it('transitions idle => syncing => synced => idle cleanly', () => {
+    expect(badgeReducer('idle', { connected: true, state: 'synced' })).toBe('idle');
+
+    const syncing = badgeReducer('idle', { connected: true, state: 'syncing' });
+    expect(syncing).toBe('syncing');
+
+    const synced = badgeReducer(syncing, { connected: true, state: 'synced' });
+    expect(synced).toBe('synced');
+
+    expect(badgeReducer(synced, { connected: true, state: 'idle' })).toBe('idle');
+  });
+
+  it('transitions syncing => error => idle and resets on disconnect', () => {
+    const syncing = badgeReducer('idle', { connected: true, state: 'syncing' });
+    const errored = badgeReducer(syncing, { connected: true, state: 'error' });
+    expect(errored).toBe('error');
+    expect(badgeReducer(errored, { connected: true, state: 'idle' })).toBe('idle');
+
+    expect(badgeReducer('syncing', { connected: false, state: 'syncing' })).toBe('idle');
   });
 
   it('renders nothing when disconnected or idle', () => {
