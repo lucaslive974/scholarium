@@ -13,3 +13,7 @@ src-tauri/gen/
 .vscode/
 *.log
 .DS_Store
+.scholarium-dev.json
+__pycache__/
+*.py[cod]
+.pytest_cache/
