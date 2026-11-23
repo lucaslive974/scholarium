@@ -1,109 +1,15 @@
-import type { BookMetadata } from '@domain/BookMetadata';
-import type { Highlight } from '@domain/Highlight';
-import type {
-  BackupArtifact,
-  BackupReport,
-  CreateBackupResult,
-  IBackupService,
-} from '@ports/IBackupService';
-import type { IHighlightService } from '@ports/IHighlightService';
-import type { ILibraryService } from '@ports/ILibraryService';
+import {
+  executeCreateBackup,
+  executeImportBackup,
+  executeRestoreBackup,
+} from '@actions/backupActions';
+import type { BackupArtifact } from '@ports/IBackupService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useLibraryStore } from '@stores/useLibraryStore';
+import { formatBackupReportSummary } from '@utils/backupFormatting';
 import { appLogger } from '@utils/logger';
 import { useCallback, useEffect, useState } from 'react';
-
-export function formatBackupSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  const kb = bytes / 1024;
-  if (kb < 1024) {
-    return `${kb.toFixed(1)} KB`;
-  }
-  const mb = kb / 1024;
-  return `${mb.toFixed(1)} MB`;
-}
-
-export function formatBackupReportSummary(prefix: string, report: BackupReport): string {
-  const bookLabel = report.booksCount === 1 ? 'book' : 'books';
-  const coverLabel = report.coversCount === 1 ? 'cover' : 'covers';
-  return `${prefix}: ${report.booksCount} ${bookLabel}, ${report.coversCount} ${coverLabel} (${formatBackupSize(report.totalBytes)})`;
-}
-
-const PLATFORM_DISPLAY_NAMES: Record<string, string> = {
-  linux: 'Linux',
-  windows: 'Windows',
-  android: 'Android',
-  ios: 'iOS',
-};
-
-export function formatBackupPlatform(platform: string): string {
-  const key = platform.trim().toLowerCase();
-  return PLATFORM_DISPLAY_NAMES[key] ?? (key ? key[0].toUpperCase() + key.slice(1) : 'Unknown');
-}
-
-export function formatBackupDeviceLabel(deviceLabel: string): string {
-  const cleaned = deviceLabel.trim().replace(/_/g, ' ');
-  if (!cleaned) return 'Unknown Device';
-  return cleaned
-    .split(/\s+/)
-    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : ''))
-    .join(' ');
-}
-
-export async function executeCreateBackup(
-  backupService: Pick<IBackupService, 'createLocalBackup'>,
-  uploadToCloud = false
-): Promise<CreateBackupResult> {
-  return backupService.createLocalBackup(uploadToCloud);
-}
-
-export interface RestoreBackupDependencies {
-  readonly backupId: string;
-  readonly backupService: Pick<IBackupService, 'restoreLocalBackup'>;
-  readonly libraryService: Pick<ILibraryService, 'listLibraryBooks'>;
-  readonly highlightService: Pick<IHighlightService, 'loadAllHighlights'>;
-  readonly setBooks: (books: readonly BookMetadata[]) => void;
-  readonly setHighlights: (highlights: readonly Highlight[]) => void;
-}
-
-export async function executeRestoreBackup(deps: RestoreBackupDependencies): Promise<BackupReport> {
-  const report = await deps.backupService.restoreLocalBackup(deps.backupId);
-  const [books, highlights] = await Promise.all([
-    deps.libraryService.listLibraryBooks(),
-    deps.highlightService.loadAllHighlights(),
-  ]);
-  deps.setBooks(books);
-  deps.setHighlights(highlights);
-  return report;
-}
-
-export interface ImportBackupDependencies {
-  readonly backupService: Pick<IBackupService, 'importAndRestoreBackup'>;
-  readonly libraryService: Pick<ILibraryService, 'listLibraryBooks'>;
-  readonly highlightService: Pick<IHighlightService, 'loadAllHighlights'>;
-  readonly setBooks: (books: readonly BookMetadata[]) => void;
-  readonly setHighlights: (highlights: readonly Highlight[]) => void;
-  readonly uploadToCloud?: boolean;
-}
-
-export async function executeImportBackup(
-  deps: ImportBackupDependencies
-): Promise<BackupReport | null> {
-  const report = await deps.backupService.importAndRestoreBackup(deps.uploadToCloud);
-  if (!report) {
-    return null;
-  }
-  const [books, highlights] = await Promise.all([
-    deps.libraryService.listLibraryBooks(),
-    deps.highlightService.loadAllHighlights(),
-  ]);
-  deps.setBooks(books);
-  deps.setHighlights(highlights);
-  return report;
-}
 
 export interface UseBackupReturn {
   readonly backups: readonly BackupArtifact[];

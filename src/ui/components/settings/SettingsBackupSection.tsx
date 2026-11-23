@@ -1,8 +1,5 @@
 import {
   type BackupState,
-  formatBackupDeviceLabel,
-  formatBackupPlatform,
-  formatBackupSize,
   isBackupActiveFor,
   isBackupBusy,
   isBackupStatus,
@@ -12,6 +9,11 @@ import {
 import type { BackupArtifact, BackupLocation } from '@ports/IBackupService';
 import { useSyncStore } from '@stores/useSyncStore';
 import { Badge, BlockingModal, Button, Card } from '@ui';
+import {
+  formatBackupDeviceLabel,
+  formatBackupPlatform,
+  formatBackupSize,
+} from '@utils/backupFormatting';
 import { memo } from 'react';
 
 export interface SettingsBackupSectionProps {
