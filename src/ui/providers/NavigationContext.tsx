@@ -2,11 +2,14 @@ import type { BookMetadata } from '@domain/BookMetadata';
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 
 export type AppViewMode = 'library' | 'reader' | 'settings';
+export type LibraryTabId = 'recents' | 'all' | 'highlights' | 'lists';
 
 export interface NavigationContextValue {
   readonly currentView: AppViewMode;
+  readonly libraryTab: LibraryTabId;
   readonly selectedBook: BookMetadata | null;
   setCurrentView(view: AppViewMode): void;
+  setLibraryTab(tab: LibraryTabId): void;
   openReader(book?: BookMetadata): void;
   closeReader(): void;
   openSettings(): void;
@@ -18,10 +21,16 @@ export const NavigationContext = createContext<NavigationContextValue | null>(nu
 export interface NavigationProviderProps {
   readonly children?: ReactNode;
   readonly initialView?: AppViewMode;
+  readonly initialLibraryTab?: LibraryTabId;
 }
 
-export function NavigationProvider({ children, initialView = 'library' }: NavigationProviderProps) {
+export function NavigationProvider({
+  children,
+  initialView = 'library',
+  initialLibraryTab = 'recents',
+}: NavigationProviderProps) {
   const [currentView, setCurrentView] = useState<AppViewMode>(initialView);
+  const [libraryTab, setLibraryTab] = useState<LibraryTabId>(initialLibraryTab);
   const [selectedBook, setSelectedBook] = useState<BookMetadata | null>(null);
 
   const openReader = useCallback((book?: BookMetadata) => {
@@ -46,14 +55,16 @@ export function NavigationProvider({ children, initialView = 'library' }: Naviga
   const value = useMemo<NavigationContextValue>(
     () => ({
       currentView,
+      libraryTab,
       selectedBook,
       setCurrentView,
+      setLibraryTab,
       openReader,
       closeReader,
       openSettings,
       closeSettings,
     }),
-    [currentView, selectedBook, openReader, closeReader, openSettings, closeSettings]
+    [currentView, libraryTab, selectedBook, openReader, closeReader, openSettings, closeSettings]
   );
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;

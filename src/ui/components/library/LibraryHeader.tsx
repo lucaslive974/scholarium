@@ -1,3 +1,4 @@
+import type { LibraryTabId } from '@providers/NavigationContext';
 import {
   Button,
   IconButton,
@@ -12,7 +13,6 @@ import {
 } from '@ui';
 import type { ChangeEvent, RefObject } from 'react';
 import { memo } from 'react';
-import type { LibraryTabId } from '../LibraryView';
 
 export interface LibraryHeaderProps {
   readonly activeTab: LibraryTabId;

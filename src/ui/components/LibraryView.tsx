@@ -1,7 +1,7 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import { executeDownloadRemoteBook, executeEvictLocalBook } from '@hooks/useCloudSync';
 import { useLibrary } from '@hooks/useLibrary';
-import { useNavigation } from '@providers/NavigationContext';
+import { type LibraryTabId, useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useTheme } from '@providers/ThemeContext';
 import { useSyncStore } from '@stores/useSyncStore';
@@ -14,8 +14,6 @@ import { LibraryAnnotationsTab } from './library/LibraryAnnotationsTab';
 import { LibraryCollectionsTab } from './library/LibraryCollectionsTab';
 import { LibraryHeader } from './library/LibraryHeader';
 import type { SegmentedControlOption } from './ui';
-
-export type LibraryTabId = 'recents' | 'all' | 'highlights' | 'lists';
 
 export interface LibraryViewProps {
   readonly books?: BookMetadata[];
@@ -62,7 +60,7 @@ export function LibraryView({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<LibraryTabId>('recents');
+  const { libraryTab: activeTab, setLibraryTab: setActiveTab } = navigation;
   const [searchQuery, setSearchQuery] = useState('');
   const [bookToRename, setBookToRename] = useState<BookMetadata | null>(null);
   const [bookToDelete, setBookToDelete] = useState<BookMetadata | null>(null);
