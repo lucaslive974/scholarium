@@ -27,6 +27,7 @@ struct FakeGoogleTransport {
     token_refreshes: AtomicUsize,
     revokes: AtomicUsize,
     forced_status: Mutex<Option<u16>>,
+    forced_refresh_error: Mutex<Option<(u16, String)>>,
 }
 
 impl FakeGoogleTransport {
@@ -37,11 +38,16 @@ impl FakeGoogleTransport {
             token_refreshes: AtomicUsize::new(0),
             revokes: AtomicUsize::new(0),
             forced_status: Mutex::new(None),
+            forced_refresh_error: Mutex::new(None),
         }
     }
 
     fn force_next_status(&self, status: u16) {
         *self.forced_status.lock().unwrap() = Some(status);
+    }
+
+    fn force_next_refresh_error(&self, status: u16, body: impl Into<String>) {
+        *self.forced_refresh_error.lock().unwrap() = Some((status, body.into()));
     }
 }
 
@@ -74,6 +80,13 @@ impl HttpTransport for FakeGoogleTransport {
                 });
             }
             if body_str.contains("grant_type=refresh_token") {
+                if let Some((status, body)) = self.forced_refresh_error.lock().unwrap().take() {
+                    return Ok(HttpResponse {
+                        status,
+                        headers: vec![("Content-Type".to_string(), "application/json".to_string())],
+                        body: body.into_bytes(),
+                    });
+                }
                 let count = self.token_refreshes.fetch_add(1, Ordering::SeqCst) + 1;
                 let json = serde_json::json!({
                     "access_token": format!("ya29.refreshed-{count}"),
@@ -362,6 +375,48 @@ fn google_oauth_pkce_adapter_handles_auth_url_exchange_refresh_and_sign_out() {
     auth.sign_out().unwrap();
     assert_eq!(transport.revokes.load(Ordering::SeqCst), 1);
     assert!(!auth.session().unwrap().connected);
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn google_oauth_pkce_adapter_clears_credentials_only_on_invalid_grant() {
+    let path = temp_cred_path("oauth-invalid-grant");
+    let creds = Arc::new(FileCloudCredentialStore::new(&path));
+    let transport = Arc::new(FakeGoogleTransport::new());
+
+    let cfg = GoogleOAuthConfig::new("client-id-123", None, "http://127.0.0.1:42813/callback");
+    let auth = GoogleOAuthPkceAdapter::new(cfg, creds, transport.clone());
+
+    let pkce = PkceChallenge::from_entropy(b"abc12345678901234567890123456789", b"state-xyz");
+    auth.exchange_code(
+        "auth-code-999",
+        &pkce.code_verifier,
+        Some("reader@example.com".to_string()),
+        10_000,
+    )
+    .unwrap();
+    assert!(auth.session().unwrap().connected);
+
+    // Transient 5xx during refresh must preserve stored credentials.
+    transport.force_next_refresh_error(
+        503,
+        r#"{ "error": "temporarily_unavailable", "error_description": "Try again later." }"#,
+    );
+    assert!(auth.get_valid_access_token(4_000_000).is_err());
+    assert!(auth.session().unwrap().connected);
+
+    // Permanent 400 invalid_grant during refresh must clear stored credentials.
+    transport.force_next_refresh_error(
+        400,
+        r#"{ "error": "invalid_grant", "error_description": "Token has been expired or revoked." }"#,
+    );
+    let err = auth.get_valid_access_token(4_000_000).unwrap_err();
+    assert!(err.contains("invalid_grant"), "unexpected error: {err}");
+
+    let session = auth.session().unwrap();
+    assert!(!session.connected);
+    assert!(session.account_label.is_none());
 
     let _ = std::fs::remove_file(&path);
 }
