@@ -9,6 +9,9 @@ import {
   formatBackupPlatform,
   formatBackupReportSummary,
   formatBackupSize,
+  isBackupActiveFor,
+  isBackupBusy,
+  isBackupStatus,
 } from '@hooks/useBackup';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useLibraryStore } from '@stores/useLibraryStore';
@@ -120,5 +123,25 @@ describe('useBackup helpers & controllers', () => {
     expect(imported?.booksCount).toBe(1);
     expect(useLibraryStore.getState().books).toHaveLength(1);
     expect(useHighlightStore.getState().highlights).toHaveLength(1);
+  });
+
+  it('evaluates backupState pure selector helpers accurately', () => {
+    expect(isBackupBusy({ status: 'idle' })).toBe(false);
+    expect(isBackupBusy({ status: 'loading' })).toBe(false);
+    expect(isBackupBusy({ status: 'creating' })).toBe(true);
+    expect(isBackupBusy({ status: 'restoring' })).toBe(true);
+
+    expect(isBackupStatus({ status: 'loading' }, 'loading')).toBe(true);
+    expect(isBackupStatus({ status: 'loading' }, 'creating')).toBe(false);
+
+    expect(
+      isBackupActiveFor({ status: 'uploading', backupId: 'bkp-1' }, 'uploading', 'bkp-1')
+    ).toBe(true);
+    expect(
+      isBackupActiveFor({ status: 'uploading', backupId: 'bkp-1' }, 'uploading', 'bkp-2')
+    ).toBe(false);
+    expect(isBackupActiveFor({ status: 'deleting', backupId: 'bkp-1' }, 'uploading', 'bkp-1')).toBe(
+      false
+    );
   });
 });
