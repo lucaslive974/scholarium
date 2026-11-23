@@ -1,9 +1,8 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import { executeDownloadRemoteBook, executeEvictLocalBook } from '@hooks/useCloudSync';
 import { useLibrary } from '@hooks/useLibrary';
-import { type LibraryTabId, useNavigation } from '@providers/NavigationContext';
+import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
-import { useTheme } from '@providers/ThemeContext';
 import { useSyncStore } from '@stores/useSyncStore';
 import { appLogger } from '@utils/logger';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
@@ -13,7 +12,6 @@ import { EditBookMetadataModal } from './library/EditBookMetadataModal';
 import { LibraryAnnotationsTab } from './library/LibraryAnnotationsTab';
 import { LibraryCollectionsTab } from './library/LibraryCollectionsTab';
 import { LibraryHeader } from './library/LibraryHeader';
-import type { SegmentedControlOption } from './ui';
 
 export interface LibraryViewProps {
   readonly books?: BookMetadata[];
@@ -30,7 +28,6 @@ export function LibraryView({
 }: LibraryViewProps = {}) {
   const library = useLibrary();
   const navigation = useNavigation();
-  const { theme, toggleTheme } = useTheme();
   const { presenceService, syncService } = useServiceContainer();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -112,26 +109,17 @@ export function LibraryView({
     );
   });
 
-  const tabOptions: readonly SegmentedControlOption<LibraryTabId>[] = [
-    { id: 'recents', label: 'Recents' },
-    { id: 'all', label: 'All Books', count: filteredBooks.length },
-    { id: 'highlights', label: 'Annotations' },
-    { id: 'lists', label: 'Collections' },
-  ];
-
   return (
     <div className="app-page-shell selection:bg-tx-main selection:text-canvas">
       <LibraryHeader
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        tabOptions={tabOptions}
+        allBooksCount={filteredBooks.length}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onImportClick={handleOpenFileInput}
         onFileChange={handleFileChange}
         fileInputRef={fileInputRef}
-        theme={theme}
-        onToggleTheme={toggleTheme}
         onOpenSettings={onOpenSettings}
       />
 

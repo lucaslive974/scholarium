@@ -1,4 +1,5 @@
 import type { LibraryTabId } from '@providers/NavigationContext';
+import { useTheme } from '@providers/ThemeContext';
 import {
   Button,
   IconButton,
@@ -12,35 +13,42 @@ import {
   SunIcon,
 } from '@ui';
 import type { ChangeEvent, RefObject } from 'react';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 
 export interface LibraryHeaderProps {
   readonly activeTab: LibraryTabId;
   readonly onTabChange: (tab: LibraryTabId) => void;
-  readonly tabOptions: readonly SegmentedControlOption<LibraryTabId>[];
+  readonly allBooksCount: number;
   readonly searchQuery: string;
   readonly onSearchChange: (query: string) => void;
   readonly onImportClick: () => void;
   readonly onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   readonly fileInputRef: RefObject<HTMLInputElement | null>;
-  readonly theme: string;
-  readonly onToggleTheme: () => void;
   readonly onOpenSettings: () => void;
 }
 
 export const LibraryHeader = memo(function LibraryHeader({
   activeTab,
   onTabChange,
-  tabOptions,
+  allBooksCount,
   searchQuery,
   onSearchChange,
   onImportClick,
   onFileChange,
   fileInputRef,
-  theme,
-  onToggleTheme,
   onOpenSettings,
 }: LibraryHeaderProps) {
+  const { theme, toggleTheme } = useTheme();
+  const tabOptions = useMemo<readonly SegmentedControlOption<LibraryTabId>[]>(
+    () => [
+      { id: 'recents', label: 'Recents' },
+      { id: 'all', label: 'All Books', count: allBooksCount },
+      { id: 'highlights', label: 'Annotations' },
+      { id: 'lists', label: 'Collections' },
+    ],
+    [allBooksCount]
+  );
+
   return (
     <header className="sticky top-safe z-20 flex-wrap gap-3 app-header-bar">
       <div className="flex items-center">
@@ -85,7 +93,7 @@ export const LibraryHeader = memo(function LibraryHeader({
           variant="ghost"
           size="sm"
           label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          onClick={onToggleTheme}
+          onClick={toggleTheme}
         >
           {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
         </IconButton>
