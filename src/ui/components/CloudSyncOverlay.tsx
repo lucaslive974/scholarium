@@ -3,19 +3,25 @@ import type { CloudSyncState } from '@ports/ISyncService';
 import { useSyncStore } from '@stores/useSyncStore';
 import { CloudCheckIcon, CloudIcon } from '@ui';
 import { hasDocument } from '@utils/dom';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useReducer } from 'react';
 import { createPortal } from 'react-dom';
 
-type BadgePhase = 'hidden' | 'syncing' | 'synced' | 'error';
+export interface BadgeAction {
+  readonly connected: boolean;
+  readonly state: CloudSyncState | undefined;
+}
 
-export function resolveSyncBadgePhase(
-  state: CloudSyncState | undefined,
-  wasSyncing: boolean
-): BadgePhase {
-  if (state === 'syncing') return 'syncing';
-  if (wasSyncing && state === 'synced') return 'synced';
-  if (wasSyncing && state === 'error') return 'error';
-  return 'hidden';
+export function badgeReducer(current: CloudSyncState, action: BadgeAction): CloudSyncState {
+  if (!action.connected) return 'idle';
+  switch (action.state) {
+    case 'syncing':
+      return 'syncing';
+    case 'synced':
+    case 'error':
+      return current === 'syncing' ? action.state : 'idle';
+    default:
+      return 'idle';
+  }
 }
 
 export const CloudSyncOverlay = memo(function CloudSyncOverlay() {
@@ -23,34 +29,24 @@ export const CloudSyncOverlay = memo(function CloudSyncOverlay() {
 
   const connected = useSyncStore((s) => s.status?.connected ?? false);
   const syncState = useSyncStore((s) => s.status?.state);
-  const [phase, setPhase] = useState<BadgePhase>('hidden');
-  const wasSyncingRef = useRef(false);
+  const [phase, dispatch] = useReducer(badgeReducer, 'idle');
 
   useEffect(() => {
-    if (!connected) {
-      wasSyncingRef.current = false;
-      setPhase('hidden');
-      return;
-    }
-
-    const next = resolveSyncBadgePhase(syncState, wasSyncingRef.current);
-    if (syncState === 'syncing') {
-      wasSyncingRef.current = true;
-      setPhase('syncing');
-      return;
-    }
-
-    if (next === 'synced' || next === 'error') {
-      wasSyncingRef.current = false;
-      setPhase(next);
-      const timer = setTimeout(() => setPhase('hidden'), next === 'synced' ? 1600 : 2800);
-      return () => clearTimeout(timer);
-    }
-
-    setPhase('hidden');
+    dispatch({ connected, state: syncState });
   }, [connected, syncState]);
 
-  if (phase === 'hidden') {
+  useEffect(() => {
+    if (phase !== 'synced' && phase !== 'error') {
+      return;
+    }
+    const timer = setTimeout(
+      () => dispatch({ connected: true, state: 'idle' }),
+      phase === 'synced' ? 1600 : 2800
+    );
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  if (phase === 'idle') {
     return null;
   }
 

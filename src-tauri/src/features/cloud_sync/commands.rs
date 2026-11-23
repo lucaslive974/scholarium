@@ -144,7 +144,7 @@ async fn finish_google_oauth(
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         guard.cloud_sync.cloud_auth = Some(pending.adapter);
         guard.storage.set_remote(Some(drive_storage));
-        scheduler.mark_dirty();
+        scheduler.request_immediate_sync();
         scheduler.emit_current(app, &guard);
         scheduler.snapshot(&guard)
     };
@@ -249,7 +249,7 @@ pub async fn connect_google_drive(
         guard.cloud_sync.pending_oauth = None;
         guard.cloud_sync.cloud_auth = Some(adapter);
         guard.storage.set_remote(Some(drive_storage));
-        scheduler.mark_dirty();
+        scheduler.request_immediate_sync();
         scheduler.emit_current(&app, &guard);
         scheduler.snapshot(&guard)
     };
