@@ -1,11 +1,11 @@
 import type { BookMetadata } from '@domain/BookMetadata';
+import { useBookImport } from '@hooks/useBookImport';
 import { executeDownloadRemoteBook, executeEvictLocalBook } from '@hooks/useCloudSync';
 import { useLibrary } from '@hooks/useLibrary';
 import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useSyncStore } from '@stores/useSyncStore';
-import { appLogger } from '@utils/logger';
-import { type ChangeEvent, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BooksGrid } from './library/BooksGrid';
 import { DeleteBookDialog } from './library/DeleteBookDialog';
 import { EditBookMetadataModal } from './library/EditBookMetadataModal';
@@ -29,11 +29,14 @@ export function LibraryView({
   const library = useLibrary();
   const navigation = useNavigation();
   const { presenceService, syncService } = useServiceContainer();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const books = propBooks ?? library.books;
   const onOpenBook = propOnOpenBook ?? navigation.openReader;
   const onOpenSettings = propOnOpenSettings ?? navigation.openSettings;
+  const { openImportPicker, fileInputProps } = useBookImport({
+    onImported: onOpenBook,
+    onOverridePick: propOnImportNewBook,
+  });
 
   const handleOpenBook = async (book: BookMetadata) => {
     if (__ENABLE_CLOUD_SYNC__) {
@@ -68,40 +71,6 @@ export function LibraryView({
     }
   }, [activeTab, books.length, presenceService]);
 
-  const handleOpenFileInput = async () => {
-    if (propOnImportNewBook) {
-      propOnImportNewBook();
-      return;
-    }
-    if (__IS_MOBILE__) {
-      fileInputRef.current?.click();
-      return;
-    }
-    try {
-      const book = await library.pickAndImportBook();
-      if (book) {
-        onOpenBook(book);
-        return;
-      }
-      return;
-    } catch {
-      fileInputRef.current?.click();
-    }
-  };
-
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const imported = await library.importBookFile(file);
-      onOpenBook(imported);
-    } catch (err) {
-      appLogger.error(`Failed to import book: ${String(err)}`, 'library');
-    } finally {
-      e.target.value = '';
-    }
-  };
-
   const filteredBooks = books.filter((b) => {
     const q = searchQuery.toLowerCase();
     return (
@@ -117,11 +86,11 @@ export function LibraryView({
         allBooksCount={filteredBooks.length}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onImportClick={handleOpenFileInput}
-        onFileChange={handleFileChange}
-        fileInputRef={fileInputRef}
+        onImportClick={openImportPicker}
         onOpenSettings={onOpenSettings}
       />
+
+      <input {...fileInputProps} className="hidden" aria-label="Upload eBook file" />
 
       <main className="flex-1 w-full px-6 py-6 flex flex-col gap-6">
         {(activeTab === 'recents' || activeTab === 'all') && (
@@ -131,7 +100,7 @@ export function LibraryView({
             onRenameBook={setBookToRename}
             onDeleteBook={setBookToDelete}
             onEvictBook={__ENABLE_CLOUD_SYNC__ ? handleEvictBook : undefined}
-            onImportClick={handleOpenFileInput}
+            onImportClick={openImportPicker}
           />
         )}
 

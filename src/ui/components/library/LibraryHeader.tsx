@@ -12,7 +12,6 @@ import {
   SettingsIcon,
   SunIcon,
 } from '@ui';
-import type { ChangeEvent, RefObject } from 'react';
 import { memo, useMemo } from 'react';
 
 export interface LibraryHeaderProps {
@@ -22,8 +21,6 @@ export interface LibraryHeaderProps {
   readonly searchQuery: string;
   readonly onSearchChange: (query: string) => void;
   readonly onImportClick: () => void;
-  readonly onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
-  readonly fileInputRef: RefObject<HTMLInputElement | null>;
   readonly onOpenSettings: () => void;
 }
 
@@ -34,8 +31,6 @@ export const LibraryHeader = memo(function LibraryHeader({
   searchQuery,
   onSearchChange,
   onImportClick,
-  onFileChange,
-  fileInputRef,
   onOpenSettings,
 }: LibraryHeaderProps) {
   const { theme, toggleTheme } = useTheme();
@@ -80,14 +75,6 @@ export const LibraryHeader = memo(function LibraryHeader({
         >
           Import
         </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".epub,.pdf"
-          className="hidden"
-          onChange={onFileChange}
-          aria-label="Upload eBook file"
-        />
 
         <IconButton
           variant="ghost"
