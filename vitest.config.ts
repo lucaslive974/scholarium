@@ -5,6 +5,7 @@ export default defineConfig({
   define: {
     __IS_MOBILE__: false,
     __ENABLE_CLOUD_SYNC__: true,
+    __ENABLE_DISCORD_PRESENCE__: true,
   },
   resolve: {
     alias: {

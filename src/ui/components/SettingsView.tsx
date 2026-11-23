@@ -22,7 +22,7 @@ export function SettingsView() {
 
         {__ENABLE_CLOUD_SYNC__ && <SettingsSyncSection />}
 
-        {!__IS_MOBILE__ && settings.supportsDiscordPresence && (
+        {__ENABLE_DISCORD_PRESENCE__ && (
           <SettingsIntegrationsSection
             isDiscordEnabled={settings.isDiscordEnabled}
             discordHealth={settings.discordHealth}

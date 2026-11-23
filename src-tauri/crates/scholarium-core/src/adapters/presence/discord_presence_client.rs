@@ -15,7 +15,10 @@ pub trait DiscordPresenceClient: Send {
     fn check_health(&self) -> Result<PresenceHealth, String>;
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(all(
+    feature = "discord-presence",
+    not(any(target_os = "android", target_os = "ios"))
+))]
 mod desktop {
     use super::*;
     use discord_presence::Client as DiscordRpcClient;
@@ -167,11 +170,17 @@ mod desktop {
     }
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(all(
+    feature = "discord-presence",
+    not(any(target_os = "android", target_os = "ios"))
+))]
 pub use desktop::NativeDiscordPresenceClient;
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
-mod mobile {
+#[cfg(not(all(
+    feature = "discord-presence",
+    not(any(target_os = "android", target_os = "ios"))
+)))]
+mod disabled {
     use super::*;
 
     pub struct NativeDiscordPresenceClient;
@@ -216,5 +225,8 @@ mod mobile {
     }
 }
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
-pub use mobile::NativeDiscordPresenceClient;
+#[cfg(not(all(
+    feature = "discord-presence",
+    not(any(target_os = "android", target_os = "ios"))
+)))]
+pub use disabled::NativeDiscordPresenceClient;

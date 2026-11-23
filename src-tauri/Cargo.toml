@@ -14,6 +14,7 @@ tauri-build = { version = "2", features = [] }
 
 [features]
 default = []
+discord-presence = ["scholarium-core/discord-presence"]
 cloud-sync = [
   "scholarium-core/cloud-sync",
   "dep:tiny_http",

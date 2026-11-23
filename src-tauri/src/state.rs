@@ -9,7 +9,6 @@ use scholarium_core::adapters::persistence::{SqliteBookRepository, SqliteHighlig
 use scholarium_core::adapters::platform::{
     AndroidEnvironment, IosEnvironment, LinuxEnvironment, WindowsEnvironment,
 };
-use scholarium_core::adapters::presence::NativeDiscordPresenceAdapter;
 use scholarium_core::adapters::storage::{LocalFolderStorageAdapter, StorageManagerDecorator};
 use scholarium_core::core::domain::BookMetadata;
 use scholarium_core::core::ports::{
@@ -112,21 +111,13 @@ impl Default for BackendState {
             .map(|val| val != "false")
             .unwrap_or(true);
 
-        let discord_client_id = config_store
-            .get("discord_client_id")
-            .ok()
-            .flatten()
-            .and_then(|id_str| id_str.parse::<u64>().ok());
-
-        let supports_discord = platform.platform_kind().supports_discord_presence()
-            && cfg!(not(any(target_os = "android", target_os = "ios")));
-
         let now = crate::utils::current_epoch_ms();
         let mut presence_manager = RichPresenceManager::new_with_start_time(3000, now);
-        if supports_discord {
-            let discord_adapter =
-                NativeDiscordPresenceAdapter::create_default(discord_client_id, discord_enabled);
-            presence_manager.register_provider(discord_adapter);
+        if let Some(provider) = crate::features::discord_presence::create_provider(
+            discord_enabled,
+            platform.platform_kind(),
+        ) {
+            presence_manager.register_provider(provider);
         }
 
         let cloud_sync = CloudSyncState::init(&*platform, &mut storage);
