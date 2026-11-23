@@ -20,11 +20,11 @@ describe('NavigationContext & useNavigation', () => {
   };
 
   function ConsumerComponent() {
-    const { currentView, selectedBook } = useNavigation();
+    const { currentView, libraryTab, selectedBook } = useNavigation();
     return React.createElement(
       'div',
       { 'data-testid': 'nav-consumer' },
-      `${currentView}-${selectedBook?.title ?? 'none'}`
+      `${currentView}-${libraryTab}-${selectedBook?.title ?? 'none'}`
     );
   }
 
@@ -34,22 +34,22 @@ describe('NavigationContext & useNavigation', () => {
     );
   });
 
-  it('renders default library view with no selected book', () => {
+  it('renders default library view with recents tab and no selected book', () => {
     const markup = renderToStaticMarkup(
       React.createElement(NavigationProvider, null, React.createElement(ConsumerComponent))
     );
-    expect(markup).toContain('library-none');
+    expect(markup).toContain('library-recents-none');
   });
 
-  it('renders custom initial view when provided', () => {
+  it('renders custom initial view and library tab when provided', () => {
     const markup = renderToStaticMarkup(
       React.createElement(
         NavigationProvider,
-        { initialView: 'settings' },
+        { initialView: 'settings', initialLibraryTab: 'highlights' },
         React.createElement(ConsumerComponent)
       )
     );
-    expect(markup).toContain('settings-none');
+    expect(markup).toContain('settings-highlights-none');
   });
 
   it('provides navigation action methods', () => {
@@ -73,6 +73,7 @@ describe('NavigationContext & useNavigation', () => {
     expect(typeof nav.openSettings).toBe('function');
     expect(typeof nav.closeSettings).toBe('function');
     expect(typeof nav.setCurrentView).toBe('function');
+    expect(typeof nav.setLibraryTab).toBe('function');
 
     // Test calling methods for code coverage
     nav.openReader(dummyBook);
@@ -80,5 +81,6 @@ describe('NavigationContext & useNavigation', () => {
     nav.openSettings();
     nav.closeSettings();
     nav.setCurrentView('library');
+    nav.setLibraryTab('lists');
   });
 });
