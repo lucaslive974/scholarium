@@ -8,12 +8,14 @@ const port = Number(process.env.VITE_PORT) || 1420;
 const tauriPlatform = process.env.TAURI_ENV_PLATFORM ?? 'desktop';
 const isMobile = tauriPlatform === 'android' || tauriPlatform === 'ios';
 const enableCloudSync = process.env.SCHOLARIUM_CLOUD_SYNC === 'true';
+const enableDiscordPresence = !isMobile && process.env.SCHOLARIUM_DISCORD_PRESENCE === 'true';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   define: {
     __IS_MOBILE__: JSON.stringify(isMobile),
     __ENABLE_CLOUD_SYNC__: JSON.stringify(enableCloudSync),
+    __ENABLE_DISCORD_PRESENCE__: JSON.stringify(enableDiscordPresence),
   },
   resolve: {
     alias: {

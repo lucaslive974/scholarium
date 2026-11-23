@@ -72,7 +72,7 @@ export function createServiceContainer(
   const highlightService = overrides.highlightService ?? new TauriHighlightService();
   const presenceService =
     overrides.presenceService ??
-    (__IS_MOBILE__ ? new NoopPresenceService() : new TauriPresenceService());
+    (__ENABLE_DISCORD_PRESENCE__ ? new TauriPresenceService() : new NoopPresenceService());
   const settingsService = overrides.settingsService ?? new TauriSettingsService();
   const logService = overrides.logService ?? new TauriLogService();
   const backupService = overrides.backupService ?? new TauriBackupService();

@@ -2,7 +2,7 @@ mod fakes;
 
 use fakes::FakeDiscordPresenceClient;
 use scholarium_core::adapters::presence::{
-    DiscordPresenceAdapter, NativeDiscordPresenceAdapter, DEFAULT_DISCORD_CLIENT_ID,
+    resolve_discord_client_id, DiscordPresenceAdapter, NativeDiscordPresenceAdapter,
 };
 use scholarium_core::core::ports::{PresenceActivity, PresenceProvider, ReadingActivity};
 use scholarium_core::core::services::RichPresenceManager;
@@ -337,12 +337,22 @@ fn test_rich_presence_global_monotonic_timer_and_context_bypass() {
 
 #[test]
 fn test_native_discord_presence_adapter_creation() {
+    let expected_from_env =
+        option_env!("SCHOLARIUM_DISCORD_APP_ID").and_then(|v| v.trim().parse::<u64>().ok());
     let default_adapter = NativeDiscordPresenceAdapter::create_default(None, false);
-    assert_eq!(default_adapter.id(), "discord");
-    assert_eq!(default_adapter.client_id(), DEFAULT_DISCORD_CLIENT_ID);
-    assert!(!default_adapter.is_enabled());
+    assert_eq!(default_adapter.is_some(), expected_from_env.is_some());
 
-    let custom_adapter = NativeDiscordPresenceAdapter::create_default(Some(12345), true);
+    let custom_adapter =
+        NativeDiscordPresenceAdapter::create_default(Some(12345), true).expect("explicit client id");
+    assert_eq!(custom_adapter.id(), "discord");
     assert_eq!(custom_adapter.client_id(), 12345);
     assert!(custom_adapter.is_enabled());
+}
+
+#[test]
+fn test_resolve_discord_client_id_precedence() {
+    assert_eq!(resolve_discord_client_id(Some(987654321)), Some(987654321));
+    let expected_from_env =
+        option_env!("SCHOLARIUM_DISCORD_APP_ID").and_then(|v| v.trim().parse::<u64>().ok());
+    assert_eq!(resolve_discord_client_id(None), expected_from_env);
 }

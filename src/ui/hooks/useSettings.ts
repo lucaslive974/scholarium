@@ -10,7 +10,6 @@ import { useCallback, useEffect, useState } from 'react';
 export interface SettingsHook {
   readonly isDriveConnected: boolean;
   readonly isDiscordEnabled: boolean;
-  readonly supportsDiscordPresence: boolean;
   readonly discordHealth: PresenceHealthStatus | null;
   readonly isCheckingDiscordHealth: boolean;
   readonly syncStatusMessage: string | null;
@@ -31,7 +30,6 @@ export function useSettings(): SettingsHook {
 
   const [isDriveConnected, setIsDriveConnected] = useState<boolean>(true);
   const [isDiscordEnabled, setIsDiscordEnabled] = useState<boolean>(true);
-  const [supportsDiscordPresence, setSupportsDiscordPresence] = useState<boolean>(true);
   const [discordHealth, setDiscordHealth] = useState<PresenceHealthStatus | null>(null);
   const [isCheckingDiscordHealth, setIsCheckingDiscordHealth] = useState<boolean>(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
@@ -56,15 +54,10 @@ export function useSettings(): SettingsHook {
   }, [presenceService]);
 
   useEffect(() => {
-    if (__IS_MOBILE__) {
+    if (!__ENABLE_DISCORD_PRESENCE__) {
       return;
     }
     let mounted = true;
-    void settingsService.getPlatformInfo().then((info) => {
-      if (mounted) {
-        setSupportsDiscordPresence(info.supportsDiscordPresence);
-      }
-    });
     void settingsService.getAppSetting('discord_presence_enabled').then((val) => {
       if (mounted && val !== null) {
         const enabled = val !== 'false';
@@ -131,7 +124,6 @@ export function useSettings(): SettingsHook {
   return {
     isDriveConnected,
     isDiscordEnabled,
-    supportsDiscordPresence,
     discordHealth,
     isCheckingDiscordHealth,
     syncStatusMessage,

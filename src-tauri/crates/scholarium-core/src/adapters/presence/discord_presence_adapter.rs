@@ -1,7 +1,13 @@
 use super::discord_presence_client::{DiscordPresenceClient, NativeDiscordPresenceClient};
 use crate::core::ports::{PresenceActivity, PresenceHealth, PresenceProvider, ReadingActivity};
 
-pub const DEFAULT_DISCORD_CLIENT_ID: u64 = 1566424463602356286;
+/// Resolves the Discord Application ID from an explicit override or
+/// compile-time `SCHOLARIUM_DISCORD_APP_ID`.
+pub fn resolve_discord_client_id(explicit_client_id: Option<u64>) -> Option<u64> {
+    explicit_client_id.or_else(|| {
+        option_env!("SCHOLARIUM_DISCORD_APP_ID").and_then(|v| v.trim().parse::<u64>().ok())
+    })
+}
 
 pub struct DiscordPresenceAdapter<C: DiscordPresenceClient> {
     id: String,
@@ -65,9 +71,9 @@ impl<C: DiscordPresenceClient> DiscordPresenceAdapter<C> {
 pub type NativeDiscordPresenceAdapter = DiscordPresenceAdapter<NativeDiscordPresenceClient>;
 
 impl NativeDiscordPresenceAdapter {
-    pub fn create_default(client_id: Option<u64>, enabled: bool) -> Self {
-        let cid = client_id.unwrap_or(DEFAULT_DISCORD_CLIENT_ID);
-        Self::new(cid, enabled, NativeDiscordPresenceClient::new(cid))
+    pub fn create_default(client_id: Option<u64>, enabled: bool) -> Option<Self> {
+        let cid = resolve_discord_client_id(client_id)?;
+        Some(Self::new(cid, enabled, NativeDiscordPresenceClient::new(cid)))
     }
 }
 

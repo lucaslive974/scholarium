@@ -62,8 +62,7 @@ pub fn get_platform_info(
 ) -> Result<IpcPlatformInfoDto, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
     let env = &guard.platform_env;
-    let supports_discord = env.platform_kind().supports_discord_presence()
-        && cfg!(not(any(target_os = "android", target_os = "ios")));
+    let supports_discord = crate::features::discord_presence::is_supported(env.platform_kind());
     Ok(IpcPlatformInfoDto {
         platform: format!("{:?}", env.platform_kind()),
         config_dir: env.config_dir()?.to_string_lossy().to_string(),
@@ -166,16 +165,10 @@ pub fn get_discord_presence_health(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<PresenceHealth, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
-    if !guard
-        .platform_env
-        .platform_kind()
-        .supports_discord_presence()
-        || cfg!(any(target_os = "android", target_os = "ios"))
-    {
+    if !crate::features::discord_presence::is_supported(guard.platform_env.platform_kind()) {
         return Ok(PresenceHealth {
             ok: false,
-            message: "Discord Rich Presence requires a Desktop OS (Linux, Windows, macOS)"
-                .to_string(),
+            message: "Discord Rich Presence is disabled or requires a Desktop OS".to_string(),
         });
     }
     guard.presence_manager.check_provider_health("discord")
