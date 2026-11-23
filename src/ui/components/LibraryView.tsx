@@ -1,6 +1,6 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import { useBookImport } from '@hooks/useBookImport';
-import { executeDownloadRemoteBook, executeEvictLocalBook } from '@hooks/useCloudSync';
+import { useBookSyncActions } from '@hooks/useCloudSync';
 import { useLibrary } from '@hooks/useLibrary';
 import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
@@ -28,7 +28,8 @@ export function LibraryView({
 }: LibraryViewProps = {}) {
   const library = useLibrary();
   const navigation = useNavigation();
-  const { presenceService, syncService } = useServiceContainer();
+  const { presenceService } = useServiceContainer();
+  const { downloadBook, evictLocalBook } = useBookSyncActions();
 
   const books = propBooks ?? library.books;
   const onOpenBook = propOnOpenBook ?? navigation.openReader;
@@ -45,7 +46,7 @@ export function LibraryView({
         return;
       }
       if (syncState.availabilities[book.bookHash] === 'remoteOnly') {
-        await executeDownloadRemoteBook(syncService, book.bookHash);
+        await downloadBook(book.bookHash);
         if (useSyncStore.getState().availabilities[book.bookHash] === 'remoteOnly') {
           return;
         }
@@ -56,7 +57,7 @@ export function LibraryView({
 
   const handleEvictBook = (book: BookMetadata) => {
     if (__ENABLE_CLOUD_SYNC__) {
-      void executeEvictLocalBook(syncService, book.bookHash);
+      void evictLocalBook(book.bookHash);
     }
   };
 

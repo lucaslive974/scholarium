@@ -12,6 +12,7 @@ export default defineConfig({
       '@ports': path.resolve(import.meta.dirname, 'src/core/ports'),
       '@core': path.resolve(import.meta.dirname, 'src/core'),
       '@adapters': path.resolve(import.meta.dirname, 'src/adapters'),
+      '@actions': path.resolve(import.meta.dirname, 'src/ui/actions'),
       '@hooks': path.resolve(import.meta.dirname, 'src/ui/hooks'),
       '@providers': path.resolve(import.meta.dirname, 'src/ui/providers'),
       '@stores': path.resolve(import.meta.dirname, 'src/ui/stores'),

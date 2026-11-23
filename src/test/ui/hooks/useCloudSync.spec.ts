@@ -1,13 +1,3 @@
-import type {
-  BookAvailability,
-  CloudSyncStatus,
-  ISyncService,
-  OAuthStartResult,
-  SyncReport,
-} from '@core/ports/ISyncService';
-import type { BookMetadata } from '@domain/BookMetadata';
-import { Highlight } from '@domain/Highlight';
-import { BookFormat } from '@domain/types';
 import {
   executeBeginGoogleOAuth,
   executeClearCloudData,
@@ -18,7 +8,17 @@ import {
   executeRefreshSyncStatus,
   executeSetSyncInterval,
   executeSyncNow,
-} from '@hooks/useCloudSync';
+} from '@actions/syncActions';
+import type {
+  BookAvailability,
+  CloudSyncStatus,
+  ISyncService,
+  OAuthStartResult,
+  SyncReport,
+} from '@core/ports/ISyncService';
+import type { BookMetadata } from '@domain/BookMetadata';
+import { Highlight } from '@domain/Highlight';
+import { BookFormat } from '@domain/types';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useLibraryStore } from '@stores/useLibraryStore';
 import { useSyncStore } from '@stores/useSyncStore';
