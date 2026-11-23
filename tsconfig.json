@@ -24,6 +24,7 @@
       "@core/*": ["./src/core/*"],
       "@adapters/*": ["./src/adapters/*"],
       "@adapters": ["./src/adapters/index.ts"],
+      "@actions/*": ["./src/ui/actions/*"],
       "@hooks/*": ["./src/ui/hooks/*"],
       "@hooks": ["./src/ui/hooks/index.ts"],
       "@providers/*": ["./src/ui/providers/*"],
