@@ -441,7 +441,6 @@ export function createReaderPaginationController(
 }
 
 export interface UseReaderPaginationOptions {
-  readonly isStreamReady?: boolean;
   readonly scrollContainerRef?: RefObject<HTMLElement | null>;
 }
 
@@ -461,8 +460,6 @@ export function useReaderPagination(
     [readerService, presenceService, pdfViewer, scrollContainerRef]
   );
 
-  const isStreamReady = options?.isStreamReady;
-
   // 1. Initial Scroll Restoration (fires before browser repaint to eliminate scroll flickering)
   const hasRestoredRef = useRef(false);
   const currentBookHash = useReaderStore((s) => s.document.bookHash);
@@ -474,21 +471,16 @@ export function useReaderPagination(
   }
 
   useIsomorphicLayoutEffect(() => {
-    if (!isStreamReady) {
-      hasRestoredRef.current = false;
-      return;
-    }
-
     if (!hasRestoredRef.current) {
       hasRestoredRef.current = true;
       controller.restoreInitialScroll();
     }
-  }, [isStreamReady, controller]);
+  }, [controller, currentBookHash]);
 
   // 2. Focal Page & Offset Tracking at 60fps
   useEffect(() => {
     const container = scrollContainerRef?.current;
-    if (!isStreamReady || !container) return;
+    if (!container) return;
 
     let ticking = false;
 
@@ -510,7 +502,7 @@ export function useReaderPagination(
 
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [isStreamReady, controller, scrollContainerRef]);
+  }, [controller, scrollContainerRef]);
 
   return controller;
 }

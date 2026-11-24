@@ -19,15 +19,12 @@ export interface ReaderViewProps {
 }
 
 export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderViewProps) {
-  useReaderBootstrapper(book);
+  const isBootstrapping = useReaderBootstrapper(book);
 
-  const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
-  const isStreamReady = useReaderStore((s) => s.isStreamReady);
   const loadedPages = useReaderStore((s) => s.loadedPages);
   const document = useReaderStore((s) => s.document);
 
-  const isReady = !isLoadingPages && loadedPages.byPage.size > 0;
-  const showLoadingOverlay = !isReady || !isStreamReady;
+  const isReady = !isBootstrapping && loadedPages.byPage.size > 0;
   const isPdf = document.format === BookFormat.PDF;
   const chapterTitle = useReaderStore((s) => s.chapterTitle) || document.chapterTitle;
   const isChromeVisible = useReaderUIStore((s) => s.isChromeVisible);
@@ -55,7 +52,7 @@ export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderView
         isVisible={!isPdf && !isChromeVisible}
       />
       <TransitionOverlay
-        isVisible={showLoadingOverlay}
+        isVisible={!isReady}
         durationMs={250}
         minDisplayMs={3000}
         zIndexClass="z-40"
