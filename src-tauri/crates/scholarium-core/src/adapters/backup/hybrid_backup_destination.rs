@@ -71,7 +71,7 @@ impl<L: BackupDestination> BackupDestination for HybridBackupDestination<L> {
         }
 
         let mut artifacts: Vec<BackupArtifact> = merged.into_values().collect();
-        artifacts.sort_by(|a, b| b.created_at_ms.cmp(&a.created_at_ms));
+        artifacts.sort_by_key(|a| std::cmp::Reverse(a.created_at_ms));
         Ok(artifacts)
     }
 
