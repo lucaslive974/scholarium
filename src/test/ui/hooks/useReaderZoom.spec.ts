@@ -3,9 +3,39 @@ import {
   calculatePinchZoomRatio,
   calculateWheelZoomDelta,
   computeZoomViewportStyles,
+  createReaderGestureStream,
+  getGestureContainerClass,
   handleKeyboardZoomKey,
 } from '@hooks/useReaderZoom';
 import { describe, expect, it, vi } from 'vitest';
+
+function createMockEventTarget() {
+  const listeners = new Map<string, Set<EventListener>>();
+
+  return {
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+      const fn = typeof listener === 'function' ? listener : listener.handleEvent.bind(listener);
+      if (!listeners.has(type)) {
+        listeners.set(type, new Set());
+      }
+      listeners.get(type)?.add(fn);
+    },
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+      const fn = typeof listener === 'function' ? listener : listener.handleEvent.bind(listener);
+      listeners.get(type)?.delete(fn);
+    },
+    dispatch(type: string, event: Record<string, unknown>) {
+      const set = listeners.get(type);
+      if (!set) return;
+      for (const fn of set) {
+        fn(event as unknown as Event);
+      }
+    },
+    listenerCount(type: string) {
+      return listeners.get(type)?.size ?? 0;
+    },
+  };
+}
 
 describe('useReaderZoom logic', () => {
   describe('calculateWheelZoomDelta', () => {
@@ -147,6 +177,274 @@ describe('useReaderZoom logic', () => {
       expect(contentStyle.willChange).toBe('transform');
       expect(contentStyle.transformOrigin).toBe('top left');
       expect(contentStyle.width).toBe('min(calc(100vw - 2rem), 60vw)');
+    });
+  });
+
+  describe('getGestureContainerClass', () => {
+    it('maps interaction modes to cursor override classes without select-none', () => {
+      expect(getGestureContainerClass('idle')).toBe('');
+      expect(getGestureContainerClass('pinching')).toBe('');
+      expect(getGestureContainerClass('grabReady')).toBe('reader-cursor-grab');
+      expect(getGestureContainerClass('panning')).toBe('reader-cursor-grabbing');
+    });
+  });
+
+  describe('createReaderGestureStream', () => {
+    it('handles ctrl+wheel zoom and ignores plain wheel events', () => {
+      const mockWindow = createMockEventTarget();
+      const onWheelZoom = vi.fn();
+
+      const sub = createReaderGestureStream({
+        targetWindow: mockWindow as unknown as Window,
+        container: null,
+        getZoomLevel: () => 1.0,
+        setInteractionMode: vi.fn(),
+        onWheelZoom,
+        onKeyboardZoom: vi.fn(() => false),
+        onPinchZoom: vi.fn(),
+      });
+
+      const plainPrevent = vi.fn();
+      mockWindow.dispatch('wheel', {
+        ctrlKey: false,
+        metaKey: false,
+        preventDefault: plainPrevent,
+      });
+      expect(onWheelZoom).not.toHaveBeenCalled();
+      expect(plainPrevent).not.toHaveBeenCalled();
+
+      const ctrlPrevent = vi.fn();
+      mockWindow.dispatch('wheel', {
+        ctrlKey: true,
+        metaKey: false,
+        deltaY: -100,
+        clientX: 300,
+        clientY: 400,
+        preventDefault: ctrlPrevent,
+      });
+      expect(ctrlPrevent).toHaveBeenCalledTimes(1);
+      expect(onWheelZoom).toHaveBeenCalledWith(-100, { clientX: 300, clientY: 400 });
+
+      sub.unsubscribe();
+      expect(mockWindow.listenerCount('wheel')).toBe(0);
+    });
+
+    it('handles ctrl+keyboard zoom shortcuts', () => {
+      const mockWindow = createMockEventTarget();
+      const onKeyboardZoom = vi.fn((key: string) => key === '+');
+
+      const sub = createReaderGestureStream({
+        targetWindow: mockWindow as unknown as Window,
+        container: null,
+        getZoomLevel: () => 1.0,
+        setInteractionMode: vi.fn(),
+        onWheelZoom: vi.fn(),
+        onKeyboardZoom,
+        onPinchZoom: vi.fn(),
+      });
+
+      const preventDefault = vi.fn();
+      mockWindow.dispatch('keydown', { ctrlKey: true, metaKey: false, key: '+', preventDefault });
+      expect(onKeyboardZoom).toHaveBeenCalledWith('+');
+      expect(preventDefault).toHaveBeenCalledTimes(1);
+
+      sub.unsubscribe();
+    });
+
+    it('handles two-finger pinch zoom stream cleanly', () => {
+      const mockWindow = createMockEventTarget();
+      const setInteractionMode = vi.fn();
+      const onPinchZoom = vi.fn();
+
+      const sub = createReaderGestureStream({
+        targetWindow: mockWindow as unknown as Window,
+        container: null,
+        getZoomLevel: () => 1.0,
+        setInteractionMode,
+        onWheelZoom: vi.fn(),
+        onKeyboardZoom: vi.fn(() => false),
+        onPinchZoom,
+      });
+
+      mockWindow.dispatch('touchstart', {
+        touches: [
+          { clientX: 0, clientY: 0 },
+          { clientX: 100, clientY: 0 },
+        ],
+      });
+      expect(setInteractionMode).toHaveBeenCalledWith('pinching');
+
+      const preventDefault = vi.fn();
+      mockWindow.dispatch('touchmove', {
+        touches: [
+          { clientX: 0, clientY: 0 },
+          { clientX: 200, clientY: 0 },
+        ],
+        preventDefault,
+      });
+      expect(preventDefault).toHaveBeenCalledTimes(1);
+      expect(onPinchZoom).toHaveBeenCalledWith(1.0, 100, 200, { clientX: 100, clientY: 0 });
+
+      mockWindow.dispatch('touchend', { touches: [{ clientX: 0, clientY: 0 }] });
+      expect(setInteractionMode).toHaveBeenLastCalledWith('idle');
+
+      sub.unsubscribe();
+    });
+
+    it('pans both X and Y axes on Ctrl+Drag, prevents default pointerdown selection, and suppresses trailing click', () => {
+      const mockWindow = createMockEventTarget();
+      const mockContainer = Object.assign(createMockEventTarget(), {
+        scrollLeft: 100,
+        scrollTop: 200,
+      });
+      const setInteractionMode = vi.fn();
+
+      const sub = createReaderGestureStream({
+        targetWindow: mockWindow as unknown as Window,
+        container: mockContainer as unknown as HTMLElement,
+        getZoomLevel: () => 1.5,
+        setInteractionMode,
+        onWheelZoom: vi.fn(),
+        onKeyboardZoom: vi.fn(() => false),
+        onPinchZoom: vi.fn(),
+      });
+
+      mockWindow.dispatch('keydown', { key: 'Control', ctrlKey: true, metaKey: false });
+
+      const pointerDownPrevent = vi.fn();
+      mockContainer.dispatch('pointerdown', {
+        button: 0,
+        ctrlKey: true,
+        metaKey: false,
+        clientX: 300,
+        clientY: 400,
+        target: { closest: () => null },
+        preventDefault: pointerDownPrevent,
+      });
+      expect(pointerDownPrevent).toHaveBeenCalledTimes(1);
+
+      // Small move below threshold does not start panning
+      mockWindow.dispatch('pointermove', { clientX: 301, clientY: 401 });
+      expect(setInteractionMode).not.toHaveBeenCalledWith('panning');
+
+      // Diagonal move above threshold starts panning and scrolls both X and Y
+      mockWindow.dispatch('pointermove', { clientX: 260, clientY: 350 });
+      expect(setInteractionMode).toHaveBeenCalledWith('panning');
+      expect(mockContainer.scrollLeft).toBe(140);
+      expect(mockContainer.scrollTop).toBe(250);
+
+      mockWindow.dispatch('pointerup', {});
+      expect(setInteractionMode).toHaveBeenLastCalledWith('grabReady');
+
+      const stopPropagation = vi.fn();
+      mockContainer.dispatch('click', { stopPropagation });
+      expect(stopPropagation).toHaveBeenCalledTimes(1);
+
+      sub.unsubscribe();
+    });
+
+    it('preserves text selection when dragging without Ctrl even when zoomed > 1', () => {
+      const mockWindow = createMockEventTarget();
+      const mockContainer = Object.assign(createMockEventTarget(), {
+        scrollLeft: 50,
+        scrollTop: 80,
+      });
+      const setInteractionMode = vi.fn();
+
+      const sub = createReaderGestureStream({
+        targetWindow: mockWindow as unknown as Window,
+        container: mockContainer as unknown as HTMLElement,
+        getZoomLevel: () => 1.5,
+        setInteractionMode,
+        onWheelZoom: vi.fn(),
+        onKeyboardZoom: vi.fn(() => false),
+        onPinchZoom: vi.fn(),
+      });
+
+      const pointerDownPrevent = vi.fn();
+      mockContainer.dispatch('pointerdown', {
+        button: 0,
+        ctrlKey: false,
+        metaKey: false,
+        clientX: 300,
+        clientY: 400,
+        target: { closest: () => null },
+        preventDefault: pointerDownPrevent,
+      });
+      mockWindow.dispatch('pointermove', { clientX: 200, clientY: 300 });
+
+      expect(pointerDownPrevent).not.toHaveBeenCalled();
+      expect(setInteractionMode).not.toHaveBeenCalledWith('panning');
+      expect(mockContainer.scrollLeft).toBe(50);
+      expect(mockContainer.scrollTop).toBe(80);
+
+      sub.unsubscribe();
+    });
+
+    it('tracks Control modifier keydown, keyup, and window blur', () => {
+      const mockWindow = createMockEventTarget();
+      const onModifierChange = vi.fn();
+
+      const sub = createReaderGestureStream({
+        targetWindow: mockWindow as unknown as Window,
+        container: null,
+        getZoomLevel: () => 1.5,
+        setInteractionMode: vi.fn(),
+        onWheelZoom: vi.fn(),
+        onKeyboardZoom: vi.fn(() => false),
+        onPinchZoom: vi.fn(),
+        onModifierChange,
+      });
+
+      mockWindow.dispatch('keydown', { key: 'Control', ctrlKey: true, metaKey: false });
+      expect(onModifierChange).toHaveBeenLastCalledWith(true);
+
+      mockWindow.dispatch('keyup', { key: 'Control' });
+      expect(onModifierChange).toHaveBeenLastCalledWith(false);
+
+      mockWindow.dispatch('keydown', { key: 'Meta', ctrlKey: false, metaKey: true });
+      expect(onModifierChange).toHaveBeenLastCalledWith(true);
+
+      mockWindow.dispatch('blur', {});
+      expect(onModifierChange).toHaveBeenLastCalledWith(false);
+
+      sub.unsubscribe();
+    });
+
+    it('does not start panning when zoomLevel <= 1', () => {
+      const mockWindow = createMockEventTarget();
+      const mockContainer = Object.assign(createMockEventTarget(), {
+        scrollLeft: 0,
+        scrollTop: 0,
+      });
+      const setInteractionMode = vi.fn();
+
+      const sub = createReaderGestureStream({
+        targetWindow: mockWindow as unknown as Window,
+        container: mockContainer as unknown as HTMLElement,
+        getZoomLevel: () => 1.0,
+        setInteractionMode,
+        onWheelZoom: vi.fn(),
+        onKeyboardZoom: vi.fn(() => false),
+        onPinchZoom: vi.fn(),
+      });
+
+      mockContainer.dispatch('pointerdown', {
+        button: 0,
+        ctrlKey: true,
+        metaKey: false,
+        clientX: 300,
+        clientY: 400,
+        target: { closest: () => null },
+        preventDefault: vi.fn(),
+      });
+      mockWindow.dispatch('pointermove', { clientX: 200, clientY: 300 });
+
+      expect(setInteractionMode).not.toHaveBeenCalledWith('panning');
+      expect(mockContainer.scrollLeft).toBe(0);
+      expect(mockContainer.scrollTop).toBe(0);
+
+      sub.unsubscribe();
     });
   });
 });

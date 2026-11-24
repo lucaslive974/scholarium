@@ -282,3 +282,14 @@ body {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* Override text/child I-beam cursor during Ctrl+Drag 2D pan */
+.reader-cursor-grab,
+.reader-cursor-grab * {
+  cursor: grab !important;
+}
+
+.reader-cursor-grabbing,
+.reader-cursor-grabbing * {
+  cursor: grabbing !important;
+}

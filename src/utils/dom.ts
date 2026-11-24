@@ -66,11 +66,15 @@ export function selectElements<E extends Element = HTMLElement>(
 }
 
 /**
- * Safely triggers window.scrollTo if window and scrollTo are defined.
+ * Safely triggers scrollTo on the provided HTMLElement container, falling back to window when omitted.
  */
-export function safeScrollTo(options: ScrollToOptions): void {
-  if (hasWindow() && typeof window.scrollTo === 'function') {
-    window.scrollTo(options);
+export function safeScrollTo(options: ScrollToOptions, container: HTMLElement | null = null): void {
+  if (container) {
+    container.scrollTo?.(options);
+    return;
+  }
+  if (hasWindow()) {
+    window.scrollTo?.(options);
   }
 }
 
