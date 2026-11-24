@@ -122,7 +122,6 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
       totalPages: 300,
     });
     expect(updateProgressSpy).not.toHaveBeenCalled();
-    expect(state.isLoadingPages).toBe(false);
   });
 
   it('bootstraps PDF book and attempts page 1 cover extraction when missing', async () => {
@@ -232,7 +231,6 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
       );
 
       expect(useReaderStore.getState().loadedPages.byPage.size).toBe(1);
-      expect(useReaderStore.getState().isStreamReady).toBe(true);
       expect(useReaderStore.getState().chapterTitle).toBe('Intro');
     });
 
@@ -277,9 +275,10 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
   });
 
   describe('useReaderBootstrapper hook', () => {
-    it('executes book bootstrapping effect inside ServiceContainerProvider', () => {
+    it('executes book bootstrapping effect inside ServiceContainerProvider and returns transition state', () => {
+      let isBootstrapping = false;
       function Consumer({ book }: { readonly book?: BookMetadata | null }) {
-        useReaderBootstrapper(book);
+        isBootstrapping = useReaderBootstrapper(book);
         return null;
       }
 
@@ -298,7 +297,7 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
       );
 
       expect(useReaderStore.getState().document.bookHash).toBe('');
-      expect(useReaderStore.getState().isLoadingPages).toBe(false);
+      expect(isBootstrapping).toBe(false);
     });
   });
 });

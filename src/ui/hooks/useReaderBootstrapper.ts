@@ -17,7 +17,7 @@ import {
   useReaderStore,
 } from '@stores/useReaderStore';
 import { appLogger } from '@utils/logger';
-import { useEffect } from 'react';
+import { useEffect, useTransition } from 'react';
 import { loadAndSyncBookHighlights } from './useReaderHighlights';
 
 export interface ReaderBootstrapDependencies {
@@ -142,8 +142,6 @@ export async function bootstrapEpubReaderSession(
 
   viewer.setPages(pages);
   store.getState().setTotalPages(book?.totalPages ?? 0);
-
-  store.getState().setStreamReady(true);
 }
 
 /**
@@ -154,16 +152,11 @@ export async function bootstrapReaderBook(
   book?: BookMetadata | null
 ): Promise<StudyDocumentDescriptor> {
   const store = deps.store ?? useReaderStore;
-  store.getState().setLoadedPages(EMPTY_LOADED_PAGES);
-  store.getState().setLoadingPages(true);
-  store.getState().setStreamReady(false);
 
   const doc = createStudyDocumentDescriptor(book);
   store.getState().setDocument(doc);
 
   if (!doc.bookHash) {
-    store.getState().setLoadingPages(false);
-    store.getState().setStreamReady(true);
     return doc;
   }
 
@@ -192,9 +185,6 @@ export async function bootstrapReaderBook(
     }
   } catch (err) {
     appLogger.warn(`Failed to load book pages in reader: ${String(err)}`, 'reader');
-    store.getState().setStreamReady(true);
-  } finally {
-    store.getState().setLoadingPages(false);
   }
 
   if (deps.highlightService && doc.bookHash) {
@@ -220,11 +210,12 @@ export interface UseReaderBootstrapperOptions {
 
 /**
  * Hook to orchestrate book bootstrapping when opening a reader session.
+ * Returns true while the async bootstrap transition is pending.
  */
 export function useReaderBootstrapper(
   book?: BookMetadata | null,
   options?: UseReaderBootstrapperOptions
-): void {
+): boolean {
   const {
     readerService,
     libraryService,
@@ -234,21 +225,26 @@ export function useReaderBootstrapper(
     epubViewer,
     pdfViewer,
   } = useServiceContainer();
+  const [isPending, startTransition] = useTransition();
+  const store = options?.store ?? useReaderStore;
 
   useEffect(() => {
-    void bootstrapReaderBook(
-      {
-        readerService,
-        libraryService,
-        highlightService,
-        presenceService,
-        getViewer,
-        epubViewer,
-        pdfViewer,
-        store: options?.store,
-      },
-      book
-    );
+    store.getState().setLoadedPages(EMPTY_LOADED_PAGES);
+    startTransition(async () => {
+      await bootstrapReaderBook(
+        {
+          readerService,
+          libraryService,
+          highlightService,
+          presenceService,
+          getViewer,
+          epubViewer,
+          pdfViewer,
+          store,
+        },
+        book
+      );
+    });
   }, [
     book,
     readerService,
@@ -258,6 +254,8 @@ export function useReaderBootstrapper(
     getViewer,
     epubViewer,
     pdfViewer,
-    options?.store,
+    store,
   ]);
+
+  return isPending;
 }

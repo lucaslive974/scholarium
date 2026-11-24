@@ -63,8 +63,6 @@ export interface ReaderState {
   readonly pageOffsetRatio: number;
   readonly chapterTitle: string;
   readonly loadedPages: LoadedPagesInfo;
-  readonly isLoadingPages: boolean;
-  readonly isStreamReady: boolean;
 
   setDocument(doc: StudyDocumentDescriptor): void;
   setCurrentPage(page: number): void;
@@ -73,8 +71,6 @@ export interface ReaderState {
   setChapterTitle(chapterTitle: string): void;
   setLoadedPages(pages: LoadedPagesInfo): void;
   upsertPages(pages: readonly DocumentPage[]): void;
-  setLoadingPages(loading: boolean): void;
-  setStreamReady(ready: boolean): void;
   reset(): void;
 }
 
@@ -85,8 +81,6 @@ export const useReaderStore = create<ReaderState>((set) => ({
   pageOffsetRatio: 0.0,
   chapterTitle: '',
   loadedPages: EMPTY_LOADED_PAGES,
-  isLoadingPages: false,
-  isStreamReady: false,
 
   setDocument: (document) =>
     set((state) => ({
@@ -113,10 +107,6 @@ export const useReaderStore = create<ReaderState>((set) => ({
       loadedPages: createLoadedPagesInfo(newPages, state.loadedPages),
     })),
 
-  setLoadingPages: (isLoadingPages) => set({ isLoadingPages }),
-
-  setStreamReady: (isStreamReady) => set({ isStreamReady }),
-
   reset: () =>
     set({
       document: EMPTY_DOCUMENT,
@@ -125,7 +115,5 @@ export const useReaderStore = create<ReaderState>((set) => ({
       pageOffsetRatio: 0.0,
       chapterTitle: '',
       loadedPages: EMPTY_LOADED_PAGES,
-      isLoadingPages: false,
-      isStreamReady: false,
     }),
 }));

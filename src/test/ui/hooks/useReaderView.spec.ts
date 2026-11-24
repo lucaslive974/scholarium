@@ -51,7 +51,6 @@ describe('useReaderView', () => {
       useReaderStore.getState().setCurrentPage(7);
       useReaderStore.getState().setTotalPages(20);
       useReaderStore.getState().setPageOffsetRatio(0.4);
-      useReaderStore.getState().setStreamReady(true);
 
       let capturedClose: (() => Promise<void>) | null = null;
 
@@ -85,7 +84,6 @@ describe('useReaderView', () => {
 
       expect(updateProgressSpy).toHaveBeenCalledWith('book-hash-close', 7, 20, 0.4);
       expect(useReaderStore.getState().document.bookHash).toBe('');
-      expect(useReaderStore.getState().isStreamReady).toBe(false);
       expect(useReaderStore.getState().loadedPages.byPage.size).toBe(0);
     });
   });

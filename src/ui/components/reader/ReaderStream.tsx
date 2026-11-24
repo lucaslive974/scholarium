@@ -44,7 +44,6 @@ export const ReaderStream = memo(function ReaderStream({ ref }: ReaderStreamProp
   const currentPage = useReaderStore((s) => s.currentPage);
   const totalPages = useReaderStore((s) => s.totalPages);
   const loadedPages = useReaderStore((s) => s.loadedPages);
-  const isStreamReady = useReaderStore((s) => s.isStreamReady);
   const getHighlightsForPage = useHighlightsByPage();
   const setSelectedHighlightId = useHighlightStore((s) => s.setSelectedHighlightId);
   const openHighlightPopover = useReaderUIStore((s) => s.openHighlightPopover);
@@ -58,7 +57,7 @@ export const ReaderStream = memo(function ReaderStream({ ref }: ReaderStreamProp
     [totalPages, loadedPages]
   );
 
-  const pagination = useReaderPagination({ isStreamReady, scrollContainerRef });
+  const pagination = useReaderPagination({ scrollContainerRef });
 
   useImperativeHandle(
     ref,

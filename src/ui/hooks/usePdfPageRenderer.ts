@@ -93,17 +93,10 @@ export function usePdfPageRenderer({
     let cancelled = false;
     const container = containerRef.current;
 
-    const markStreamReadyIfNeeded = () => {
-      if (!useReaderStore.getState().isStreamReady) {
-        useReaderStore.getState().setStreamReady(true);
-      }
-    };
-
     const render = async () => {
       const pageProxy = await pdfViewer.getPageProxy(pageNumber);
       if (cancelled) return;
       if (!pageProxy || !containerRef.current) {
-        markStreamReadyIfNeeded();
         return;
       }
 
@@ -123,8 +116,6 @@ export function usePdfPageRenderer({
         await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current, scale, settledZoom);
       }
       if (cancelled) return;
-
-      markStreamReadyIfNeeded();
 
       if (textLayerTimer) clearTimeout(textLayerTimer);
       textLayerTimer = setTimeout(() => {
