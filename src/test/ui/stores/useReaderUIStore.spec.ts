@@ -54,4 +54,12 @@ describe('useReaderUIStore', () => {
     expect(state.contextMenu).toBeNull();
     expect(state.activeNoteDialog).toBeNull();
   });
+
+  it('tracks and resets interactionMode', () => {
+    expect(useReaderUIStore.getState().interactionMode).toBe('idle');
+    useReaderUIStore.getState().setInteractionMode('panning');
+    expect(useReaderUIStore.getState().interactionMode).toBe('panning');
+    useReaderUIStore.getState().reset();
+    expect(useReaderUIStore.getState().interactionMode).toBe('idle');
+  });
 });

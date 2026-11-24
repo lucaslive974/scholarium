@@ -1,13 +1,14 @@
 import type { Highlight } from '@domain/Highlight';
 import { BookFormat } from '@domain/types';
 import { useHighlightsByPage } from '@hooks/useReaderHighlights';
+import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
 import { useReaderZoom } from '@hooks/useReaderZoom';
 import type { DocumentPage } from '@ports/IReaderService';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { type LoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, type Ref, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
 
 /**
@@ -30,15 +31,25 @@ export function buildStreamPages(totalPages: number, loadedPages: LoadedPagesInf
   });
 }
 
-export const ReaderStream = memo(function ReaderStream() {
+export interface ReaderStreamHandle {
+  goToPage(targetPage: number): Promise<void>;
+}
+
+export interface ReaderStreamProps {
+  readonly ref?: Ref<ReaderStreamHandle>;
+}
+
+export const ReaderStream = memo(function ReaderStream({ ref }: ReaderStreamProps) {
   const document = useReaderStore((s) => s.document);
   const currentPage = useReaderStore((s) => s.currentPage);
   const totalPages = useReaderStore((s) => s.totalPages);
   const loadedPages = useReaderStore((s) => s.loadedPages);
+  const isStreamReady = useReaderStore((s) => s.isStreamReady);
   const getHighlightsForPage = useHighlightsByPage();
   const setSelectedHighlightId = useHighlightStore((s) => s.setSelectedHighlightId);
   const openHighlightPopover = useReaderUIStore((s) => s.openHighlightPopover);
 
+  const scrollContainerRef = useRef<HTMLElement>(null);
   const contentAreaRef = useRef<HTMLDivElement>(null);
   const isPdf = document.format === BookFormat.PDF;
 
@@ -47,8 +58,19 @@ export const ReaderStream = memo(function ReaderStream() {
     [totalPages, loadedPages]
   );
 
-  const { mainRef, wrapperRef, wrapperStyle, contentStyle } = useReaderZoom({
+  const pagination = useReaderPagination({ isStreamReady, scrollContainerRef });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      goToPage: (targetPage) => pagination.goToPage(targetPage),
+    }),
+    [pagination]
+  );
+
+  const { wrapperRef, wrapperStyle, contentStyle, gestureClassName } = useReaderZoom({
     isPdf,
+    scrollContainerRef,
     contentAreaRef,
   });
 
@@ -68,11 +90,11 @@ export const ReaderStream = memo(function ReaderStream() {
 
   return (
     <main
-      ref={mainRef}
+      ref={scrollContainerRef}
       className={
         isPdf
-          ? 'flex-1 w-full overflow-x-auto py-4 sm:py-8 px-2 sm:px-4'
-          : 'flex-1 w-full overflow-x-auto py-12 sm:py-20 px-4 sm:px-8'
+          ? `flex-1 min-h-0 w-full overflow-auto py-4 sm:py-8 px-2 sm:px-4 ${gestureClassName}`
+          : `flex-1 min-h-0 w-full overflow-auto py-12 sm:py-20 px-4 sm:px-8 ${gestureClassName}`
       }
     >
       <div ref={wrapperRef} className="mx-auto" style={wrapperStyle}>

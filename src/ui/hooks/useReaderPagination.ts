@@ -13,13 +13,14 @@ import {
   useIsomorphicLayoutEffect,
 } from '@utils/dom';
 import { clamp } from '@utils/math';
-import { useEffect, useMemo, useRef } from 'react';
+import { type RefObject, useEffect, useMemo, useRef } from 'react';
 
 export interface ReaderPaginationDependencies {
   readonly readerService: IReaderService;
   readonly pdfViewer?: IPdfViewer;
   readonly presenceService?: IPresenceService;
   readonly store?: typeof useReaderStore;
+  readonly scrollContainerRef?: RefObject<HTMLElement | null>;
 }
 
 export interface ArticleRect {
@@ -192,13 +193,16 @@ export function collectVisibleArticleRects(): ArticleRect[] {
  * Detects which page intersects the focal reading line and computes its relative offset ratio.
  */
 export function detectFocalPageAndOffset(
-  focalY?: number
+  focalY?: number,
+  container: HTMLElement | null = null
 ): { pageNumber: number; offsetRatio: number } | null {
   if (!isBrowser()) return null;
   const rects = collectVisibleArticleRects();
   if (rects.length === 0) return null;
 
-  const targetFocalY = focalY ?? window.innerHeight * 0.35;
+  const containerTop = container ? container.getBoundingClientRect().top : 0;
+  const targetFocalY = focalY ?? (container ? containerTop + container.clientHeight * 0.35 : null);
+  if (targetFocalY === null) return null;
   const activePage = findFocalPageNumber(rects, targetFocalY);
   if (!activePage || activePage <= 0) return null;
 
@@ -206,7 +210,7 @@ export function detectFocalPageAndOffset(
   if (!el) return null;
 
   const rect = el.getBoundingClientRect();
-  const offsetRatio = calculatePageOffsetRatio(rect.top, rect.height, 0, activePage > 1);
+  const offsetRatio = calculatePageOffsetRatio(rect.top, rect.height, containerTop, activePage > 1);
   return { pageNumber: activePage, offsetRatio };
 }
 
@@ -345,8 +349,13 @@ export function createReaderPaginationController(
     if (!hasWindow()) return;
 
     const performScroll = (): boolean => {
+      const container = deps.scrollContainerRef?.current;
+      if (!container) return false;
+
+      const behavior: ScrollBehavior = smooth ? 'smooth' : 'instant';
+
       if (targetPage === 1 && Math.abs(offsetRatio) <= 0.0001) {
-        safeScrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
+        safeScrollTo({ top: 0, behavior }, container);
         return true;
       }
 
@@ -354,13 +363,14 @@ export function createReaderPaginationController(
       if (!el) return false;
 
       const rect = el.getBoundingClientRect();
+      const containerTop = container.getBoundingClientRect().top;
       const targetTop = calculateScrollTargetTop(
-        rect.top,
+        rect.top - containerTop,
         rect.height,
-        window.scrollY ?? 0,
+        container.scrollTop,
         offsetRatio
       );
-      safeScrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'instant' });
+      safeScrollTo({ top: targetTop, behavior }, container);
       return true;
     };
 
@@ -432,20 +442,23 @@ export function createReaderPaginationController(
 
 export interface UseReaderPaginationOptions {
   readonly isStreamReady?: boolean;
+  readonly scrollContainerRef?: RefObject<HTMLElement | null>;
 }
 
 export function useReaderPagination(
   options?: UseReaderPaginationOptions
 ): ReaderPaginationController {
   const { readerService, presenceService, pdfViewer } = useServiceContainer();
+  const scrollContainerRef = options?.scrollContainerRef;
   const controller = useMemo(
     () =>
       createReaderPaginationController({
         readerService,
         presenceService,
         pdfViewer,
+        scrollContainerRef,
       }),
-    [readerService, presenceService, pdfViewer]
+    [readerService, presenceService, pdfViewer, scrollContainerRef]
   );
 
   const isStreamReady = options?.isStreamReady;
@@ -474,7 +487,8 @@ export function useReaderPagination(
 
   // 2. Focal Page & Offset Tracking at 60fps
   useEffect(() => {
-    if (!isStreamReady) return;
+    const container = scrollContainerRef?.current;
+    if (!isStreamReady || !container) return;
 
     let ticking = false;
 
@@ -486,7 +500,7 @@ export function useReaderPagination(
         ticking = false;
         if (controller.isLocked()) return;
 
-        const detected = detectFocalPageAndOffset();
+        const detected = detectFocalPageAndOffset(undefined, container);
         if (detected) {
           controller.syncPresence(detected.pageNumber);
           controller.onPageVisible(detected.pageNumber, detected.offsetRatio);
@@ -494,9 +508,9 @@ export function useReaderPagination(
       });
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isStreamReady, controller]);
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [isStreamReady, controller, scrollContainerRef]);
 
   return controller;
 }

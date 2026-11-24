@@ -1,17 +1,16 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
 import { useReaderBootstrapper } from '@hooks/useReaderBootstrapper';
-import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderView } from '@hooks/useReaderView';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { LoadingSplash, TransitionOverlay } from '@ui';
-import { memo } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { isValidAuthor } from './library/BookCover';
 import { ReaderBottomBar } from './reader/ReaderBottomBar';
 import { ReaderHeader } from './reader/ReaderHeader';
 import { ReaderOverlays } from './reader/ReaderOverlays';
-import { ReaderStream } from './reader/ReaderStream';
+import { ReaderStream, type ReaderStreamHandle } from './reader/ReaderStream';
 import { ReaderViewportChapterIndicator } from './reader/ReaderViewportChapterIndicator';
 
 export interface ReaderViewProps {
@@ -33,13 +32,16 @@ export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderView
   const chapterTitle = useReaderStore((s) => s.chapterTitle) || document.chapterTitle;
   const isChromeVisible = useReaderUIStore((s) => s.isChromeVisible);
 
+  const streamRef = useRef<ReaderStreamHandle>(null);
   const { handleCloseReader, handleViewportClick, toggleChrome } = useReaderView({ onClose });
-  const pagination = useReaderPagination({ isStreamReady });
+  const handleScrollToPage = useCallback((targetPage: number) => {
+    void streamRef.current?.goToPage(targetPage);
+  }, []);
 
   return (
     <section
       aria-label="Book Reader Document"
-      className="relative min-h-screen w-full bg-canvas text-tx-main flex flex-col justify-between overflow-x-auto select-text transition-colors duration-200 outline-none"
+      className="relative h-screen w-full bg-canvas text-tx-main flex flex-col justify-between overflow-hidden select-text transition-colors duration-200 outline-none"
       onClick={handleViewportClick}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -66,8 +68,8 @@ export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderView
           testId="reader-loading-view"
         />
       </TransitionOverlay>
-      {isReady && <ReaderStream />}
-      <ReaderBottomBar onScrollToPage={pagination.goToPage} />
+      {isReady && <ReaderStream ref={streamRef} />}
+      <ReaderBottomBar onScrollToPage={handleScrollToPage} />
       <ReaderOverlays />
     </section>
   );

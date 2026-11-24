@@ -29,8 +29,11 @@ export interface TextDialogState {
   readonly pdfRects?: readonly BoundingBox[];
 }
 
+export type ReaderInteractionMode = 'idle' | 'grabReady' | 'panning' | 'pinching';
+
 export interface ReaderUIState {
   readonly isChromeVisible: boolean;
+  readonly interactionMode: ReaderInteractionMode;
   readonly selectionPopover: SelectionPopoverState | null;
   readonly activeHighlightPopover: ActiveHighlightPopoverState | null;
   readonly expandedHighlight: Highlight | null;
@@ -41,6 +44,7 @@ export interface ReaderUIState {
 
   setChromeVisible(visible: boolean): void;
   toggleChrome(): void;
+  setInteractionMode(mode: ReaderInteractionMode): void;
   setSelectionPopover(state: SelectionPopoverState | null): void;
   openHighlightPopover(highlight: Highlight, coords: { x: number; y: number }): void;
   closeHighlightPopover(): void;
@@ -56,6 +60,7 @@ export interface ReaderUIState {
 
 export const useReaderUIStore = create<ReaderUIState>((set) => ({
   isChromeVisible: false,
+  interactionMode: 'idle',
   selectionPopover: null,
   activeHighlightPopover: null,
   expandedHighlight: null,
@@ -67,6 +72,8 @@ export const useReaderUIStore = create<ReaderUIState>((set) => ({
   setChromeVisible: (isChromeVisible) => set({ isChromeVisible }),
 
   toggleChrome: () => set((state) => ({ isChromeVisible: !state.isChromeVisible })),
+
+  setInteractionMode: (interactionMode) => set({ interactionMode }),
 
   setSelectionPopover: (selectionPopover) => set({ selectionPopover }),
 
@@ -106,6 +113,7 @@ export const useReaderUIStore = create<ReaderUIState>((set) => ({
   reset: () =>
     set({
       isChromeVisible: false,
+      interactionMode: 'idle',
       selectionPopover: null,
       activeHighlightPopover: null,
       expandedHighlight: null,

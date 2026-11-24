@@ -670,13 +670,27 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     it('restoreInitialScroll scrolls to top 0 when targetPage is 1 with no offset', () => {
       const originalWindow = globalThis.window;
       const scrollToSpy = vi.fn();
-      globalThis.window = {
+      const mockContainer = {
+        scrollTop: 120,
         scrollTo: scrollToSpy,
-      } as unknown as Window & typeof globalThis;
+        getBoundingClientRect: () => ({
+          top: 0,
+          height: 800,
+          bottom: 800,
+          left: 0,
+          right: 1200,
+          width: 1200,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }),
+      } as unknown as HTMLElement;
+      globalThis.window = {} as unknown as Window & typeof globalThis;
 
       try {
         const controller = createReaderPaginationController({
           readerService: backend,
+          scrollContainerRef: { current: mockContainer },
         });
 
         useReaderStore.getState().setCurrentPage(1);
@@ -695,6 +709,21 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       const originalDocument = globalThis.document;
       const originalWindow = globalThis.window;
       const scrollToSpy = vi.fn();
+      const mockContainer = {
+        scrollTop: 100,
+        scrollTo: scrollToSpy,
+        getBoundingClientRect: () => ({
+          top: 0,
+          height: 800,
+          bottom: 800,
+          left: 0,
+          right: 1200,
+          width: 1200,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }),
+      } as unknown as HTMLElement;
 
       const mockArticle = {
         getBoundingClientRect: () => ({
@@ -719,14 +748,12 @@ describe('useReaderPagination / createReaderPaginationController', () => {
         }),
       } as unknown as Document;
 
-      globalThis.window = {
-        scrollTo: scrollToSpy,
-        scrollY: 100,
-      } as unknown as Window & typeof globalThis;
+      globalThis.window = {} as unknown as Window & typeof globalThis;
 
       try {
         const controller = createReaderPaginationController({
           readerService: backend,
+          scrollContainerRef: { current: mockContainer },
         });
 
         useReaderStore.getState().setCurrentPage(5);
@@ -751,6 +778,21 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       const scrollToSpy = vi.fn();
       let rafCallback: FrameRequestCallback | null = null;
       let found = false;
+      const mockContainer = {
+        scrollTop: 0,
+        scrollTo: scrollToSpy,
+        getBoundingClientRect: () => ({
+          top: 0,
+          height: 800,
+          bottom: 800,
+          left: 0,
+          right: 1200,
+          width: 1200,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }),
+      } as unknown as HTMLElement;
 
       const mockArticle = {
         getBoundingClientRect: () => ({
@@ -776,8 +818,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       } as unknown as Document;
 
       globalThis.window = {
-        scrollTo: scrollToSpy,
-        scrollY: 0,
         requestAnimationFrame: (cb: FrameRequestCallback) => {
           rafCallback = cb;
           return 1;
@@ -787,6 +827,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       try {
         const controller = createReaderPaginationController({
           readerService: backend,
+          scrollContainerRef: { current: mockContainer },
         });
 
         useReaderStore.getState().setCurrentPage(8);
