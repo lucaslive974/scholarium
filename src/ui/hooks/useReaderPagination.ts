@@ -3,6 +3,7 @@ import { BookFormat } from '@domain/types';
 import type { DocumentPage, IPdfViewer, IPresenceService, IReaderService } from '@ports';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { type LoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
+import { useReaderUIStore } from '@stores/useReaderUIStore';
 import {
   hasWindow,
   isBrowser,
@@ -50,6 +51,19 @@ export interface ReaderPaginationController {
 
 export const PAGINATION_CHUNK_SIZE = 10;
 export const PREFETCH_PAGES_TRIGGER_DISTANCE = 7;
+export const CHROME_AUTO_HIDE_SCROLL_THRESHOLD_PX = 48;
+
+/**
+ * Pure predicate determining whether manual scrolling has moved far enough
+ * from the anchor position to auto-hide the reader chrome.
+ */
+export function shouldAutoHideChromeOnScroll(
+  anchorScrollTop: number,
+  currentScrollTop: number,
+  thresholdPx = CHROME_AUTO_HIDE_SCROLL_THRESHOLD_PX
+): boolean {
+  return Math.abs(currentScrollTop - anchorScrollTop) >= thresholdPx;
+}
 
 /**
  * Calculates the forward window of pages to fetch in O(1).
@@ -477,11 +491,14 @@ export function useReaderPagination(
     }
   }, [controller, currentBookHash]);
 
-  // 2. Focal Page & Offset Tracking at 60fps
+  // 2. Focal Page & Offset Tracking at 60fps + Auto-Hide Reader Chrome on Scroll
+  const lastScrollTopRef = useRef(0);
+
   useEffect(() => {
     const container = scrollContainerRef?.current;
     if (!container) return;
 
+    lastScrollTopRef.current = container.scrollTop;
     let ticking = false;
 
     const handleScroll = () => {
@@ -491,6 +508,11 @@ export function useReaderPagination(
       window.requestAnimationFrame(() => {
         ticking = false;
         if (controller.isLocked()) return;
+
+        if (shouldAutoHideChromeOnScroll(lastScrollTopRef.current, container.scrollTop)) {
+          lastScrollTopRef.current = container.scrollTop;
+          useReaderUIStore.getState().setChromeVisible(false);
+        }
 
         const detected = detectFocalPageAndOffset(undefined, container);
         if (detected) {

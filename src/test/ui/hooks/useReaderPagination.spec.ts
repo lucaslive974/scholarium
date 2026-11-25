@@ -2,6 +2,7 @@ import { buildStreamPages } from '@components/reader/ReaderStream';
 import { BookFormat } from '@domain/types';
 import {
   type ArticleRect,
+  CHROME_AUTO_HIDE_SCROLL_THRESHOLD_PX,
   calculateNextPageWindow,
   calculatePageOffsetRatio,
   calculatePrevPageWindow,
@@ -11,6 +12,7 @@ import {
   detectFocalPageAndOffset,
   determinePrefetchDirection,
   findFocalPageNumber,
+  shouldAutoHideChromeOnScroll,
   useReaderPagination,
 } from '@hooks/useReaderPagination';
 import type { IPdfViewer } from '@ports/IPdfViewer';
@@ -850,6 +852,26 @@ describe('useReaderPagination / createReaderPaginationController', () => {
         globalThis.document = originalDocument;
         globalThis.window = originalWindow;
       }
+    });
+  });
+
+  describe('shouldAutoHideChromeOnScroll', () => {
+    it('returns false when scroll delta is below threshold', () => {
+      expect(
+        shouldAutoHideChromeOnScroll(200, 200 + CHROME_AUTO_HIDE_SCROLL_THRESHOLD_PX - 1)
+      ).toBe(false);
+      expect(
+        shouldAutoHideChromeOnScroll(200, 200 - CHROME_AUTO_HIDE_SCROLL_THRESHOLD_PX + 1)
+      ).toBe(false);
+    });
+
+    it('returns true when scrolling down or up past threshold', () => {
+      expect(shouldAutoHideChromeOnScroll(200, 200 + CHROME_AUTO_HIDE_SCROLL_THRESHOLD_PX)).toBe(
+        true
+      );
+      expect(shouldAutoHideChromeOnScroll(200, 200 - CHROME_AUTO_HIDE_SCROLL_THRESHOLD_PX)).toBe(
+        true
+      );
     });
   });
 });
