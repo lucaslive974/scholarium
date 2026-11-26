@@ -2,8 +2,9 @@ import { useCloudSyncListener } from '@hooks/useCloudSync';
 import type { CloudSyncState } from '@ports/ISyncService';
 import { useSyncStore } from '@stores/useSyncStore';
 import { CloudCheckIcon, CloudIcon } from '@ui';
+import { cn } from '@utils/cn';
 import { hasDocument } from '@utils/dom';
-import { memo, useEffect, useReducer } from 'react';
+import { memo, startTransition, useEffect, useReducer, ViewTransition } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface BadgeAction {
@@ -24,6 +25,31 @@ export function badgeReducer(current: CloudSyncState, action: BadgeAction): Clou
   }
 }
 
+export interface SyncBadgePresentation {
+  readonly label: string;
+  readonly toneClass: string;
+}
+
+export function getSyncBadgePresentation(phase: CloudSyncState): SyncBadgePresentation {
+  switch (phase) {
+    case 'synced':
+      return {
+        label: 'Synced',
+        toneClass: 'text-emerald-600 dark:text-emerald-400',
+      };
+    case 'error':
+      return {
+        label: 'Sync error',
+        toneClass: 'text-amber-600 dark:text-amber-400',
+      };
+    default:
+      return {
+        label: 'Syncing...',
+        toneClass: 'text-tx-secondary',
+      };
+  }
+}
+
 export const CloudSyncOverlay = memo(function CloudSyncOverlay() {
   useCloudSyncListener();
 
@@ -32,7 +58,9 @@ export const CloudSyncOverlay = memo(function CloudSyncOverlay() {
   const [phase, dispatch] = useReducer(badgeReducer, 'idle');
 
   useEffect(() => {
-    dispatch({ connected, state: syncState });
+    startTransition(() => {
+      dispatch({ connected, state: syncState });
+    });
   }, [connected, syncState]);
 
   useEffect(() => {
@@ -40,7 +68,10 @@ export const CloudSyncOverlay = memo(function CloudSyncOverlay() {
       return;
     }
     const timer = setTimeout(
-      () => dispatch({ connected: true, state: 'idle' }),
+      () =>
+        startTransition(() => {
+          dispatch({ connected: true, state: 'idle' });
+        }),
       phase === 'synced' ? 1600 : 2800
     );
     return () => clearTimeout(timer);
@@ -50,31 +81,27 @@ export const CloudSyncOverlay = memo(function CloudSyncOverlay() {
     return null;
   }
 
-  let label = 'Syncing...';
-  let toneClass = 'text-tx-secondary';
-  if (phase === 'synced') {
-    label = 'Synced';
-    toneClass = 'text-emerald-600 dark:text-emerald-400';
-  } else if (phase === 'error') {
-    label = 'Sync error';
-    toneClass = 'text-amber-600 dark:text-amber-400';
-  }
+  const { label, toneClass } = getSyncBadgePresentation(phase);
+  const isSynced = phase === 'synced';
+  const isSyncing = phase === 'syncing';
 
   const badge = (
-    <output
-      aria-live="polite"
-      data-testid="cloud-sync-overlay"
-      className={`fixed safe-bottom-4 safe-left-4 z-30 pointer-events-none inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.7rem] font-medium cover-overlay-chip shadow-md transition-opacity duration-300 ${toneClass}`}
-    >
-      {phase === 'synced' ? (
-        <CloudCheckIcon className="h-3.5 w-3.5 shrink-0" />
-      ) : (
-        <CloudIcon
-          className={`h-3.5 w-3.5 shrink-0 ${phase === 'syncing' ? 'animate-pulse' : ''}`}
-        />
-      )}
-      <span>{label}</span>
-    </output>
+    <ViewTransition enter="overlay-fade" exit="overlay-fade">
+      <output
+        aria-live="polite"
+        data-testid="cloud-sync-overlay"
+        className={cn(
+          'fixed safe-bottom-4 safe-left-4 z-30 pointer-events-none inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.7rem] font-medium cover-overlay-chip shadow-md',
+          toneClass
+        )}
+      >
+        {isSynced && <CloudCheckIcon className="h-3.5 w-3.5 shrink-0" />}
+        {!isSynced && (
+          <CloudIcon className={cn('h-3.5 w-3.5 shrink-0', isSyncing && 'animate-pulse')} />
+        )}
+        <span>{label}</span>
+      </output>
+    </ViewTransition>
   );
 
   if (hasDocument() && document.body) {

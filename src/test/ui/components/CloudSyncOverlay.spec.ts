@@ -1,5 +1,9 @@
 import { NoopSyncService } from '@adapters/ipc/NoopSyncService';
-import { badgeReducer, CloudSyncOverlay } from '@components/CloudSyncOverlay';
+import {
+  badgeReducer,
+  CloudSyncOverlay,
+  getSyncBadgePresentation,
+} from '@components/CloudSyncOverlay';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import { useSyncStore } from '@stores/useSyncStore';
 import React from 'react';
@@ -50,5 +54,20 @@ describe('CloudSyncOverlay', () => {
     );
 
     expect(markup).toBe('');
+  });
+
+  it('returns the expected label and tone class for each sync phase', () => {
+    expect(getSyncBadgePresentation('syncing')).toEqual({
+      label: 'Syncing...',
+      toneClass: 'text-tx-secondary',
+    });
+    expect(getSyncBadgePresentation('synced')).toEqual({
+      label: 'Synced',
+      toneClass: 'text-emerald-600 dark:text-emerald-400',
+    });
+    expect(getSyncBadgePresentation('error')).toEqual({
+      label: 'Sync error',
+      toneClass: 'text-amber-600 dark:text-amber-400',
+    });
   });
 });
