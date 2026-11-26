@@ -342,8 +342,8 @@ fn test_native_discord_presence_adapter_creation() {
     let default_adapter = NativeDiscordPresenceAdapter::create_default(None, false);
     assert_eq!(default_adapter.is_some(), expected_from_env.is_some());
 
-    let custom_adapter =
-        NativeDiscordPresenceAdapter::create_default(Some(12345), true).expect("explicit client id");
+    let custom_adapter = NativeDiscordPresenceAdapter::create_default(Some(12345), true)
+        .expect("explicit client id");
     assert_eq!(custom_adapter.id(), "discord");
     assert_eq!(custom_adapter.client_id(), 12345);
     assert!(custom_adapter.is_enabled());
