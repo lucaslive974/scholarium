@@ -55,6 +55,17 @@ describe('SettingsBackupSection component', () => {
     expect(markup).toContain('No backups yet');
   });
 
+  it('renders loading skeleton when backups are initially loading', () => {
+    const markup = renderBackupSection({
+      backups: [],
+      backupState: { status: 'loading' },
+    });
+
+    expect(markup).toContain('data-testid="backup-list-skeleton"');
+    expect(markup).toContain('aria-label="Loading backups"');
+    expect(markup).not.toContain('No backups yet');
+  });
+
   it('renders backup artifacts, restore confirmation, and status banner', () => {
     const markup = renderBackupSection({
       backups: [

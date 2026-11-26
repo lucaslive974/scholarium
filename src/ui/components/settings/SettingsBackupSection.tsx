@@ -14,7 +14,8 @@ import {
   formatBackupPlatform,
   formatBackupSize,
 } from '@utils/backupFormatting';
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
+import { BackupListSkeleton } from './BackupListSkeleton';
 
 export interface SettingsBackupSectionProps {
   readonly state?: UseBackupReturn;
@@ -207,6 +208,26 @@ function BackupArtifactRow({
   );
 }
 
+interface BackupListStateProps {
+  readonly isLoading: boolean;
+  readonly isEmpty: boolean;
+  readonly children: ReactNode;
+}
+
+function BackupListState({ isLoading, isEmpty, children }: BackupListStateProps) {
+  if (isLoading && isEmpty) {
+    return <BackupListSkeleton />;
+  }
+  if (isEmpty) {
+    return (
+      <div className="rounded-lg border border-dashed border-line-subtle p-4 text-center text-xs text-tx-muted">
+        No backups yet. Create a snapshot to protect your library.
+      </div>
+    );
+  }
+  return <div className="flex flex-col gap-2">{children}</div>;
+}
+
 export const SettingsBackupSection = memo(function SettingsBackupSection({
   state: injectedState,
   isCloudConnected: propCloudConnected,
@@ -292,32 +313,24 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
 
       <BackupStatusBanners statusMessage={statusMessage} error={error} />
 
-      {isLoading && backups.length === 0 ? (
-        <p className="text-xs text-tx-muted">Loading backups…</p>
-      ) : backups.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-line-subtle p-4 text-center text-xs text-tx-muted">
-          No backups yet. Create a snapshot to protect your library.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {backups.map((backup) => (
-            <BackupArtifactRow
-              key={backup.id}
-              backup={backup}
-              backupState={backupState}
-              isCloudConnected={isCloudConnected}
-              isConfirming={pendingRestoreId === backup.id}
-              onRequestRestore={requestRestore}
-              onConfirmRestore={(id) => void confirmRestore(id)}
-              onCancelRestore={cancelRestore}
-              onUploadToCloud={(id) => void uploadBackupToCloud(id)}
-              onDeleteRemote={(id) => void deleteRemoteBackup(id)}
-              onExport={(id) => void exportBackup(id)}
-              onDelete={(id) => void deleteBackup(id)}
-            />
-          ))}
-        </div>
-      )}
+      <BackupListState isLoading={isLoading} isEmpty={backups.length === 0}>
+        {backups.map((backup) => (
+          <BackupArtifactRow
+            key={backup.id}
+            backup={backup}
+            backupState={backupState}
+            isCloudConnected={isCloudConnected}
+            isConfirming={pendingRestoreId === backup.id}
+            onRequestRestore={requestRestore}
+            onConfirmRestore={(id) => void confirmRestore(id)}
+            onCancelRestore={cancelRestore}
+            onUploadToCloud={(id) => void uploadBackupToCloud(id)}
+            onDeleteRemote={(id) => void deleteRemoteBackup(id)}
+            onExport={(id) => void exportBackup(id)}
+            onDelete={(id) => void deleteBackup(id)}
+          />
+        ))}
+      </BackupListState>
 
       <BlockingModal
         isOpen={isBusy}
