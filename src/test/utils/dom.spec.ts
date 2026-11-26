@@ -5,6 +5,7 @@ import {
   getWindowSelection,
   hasDocument,
   hasIntersectionObserver,
+  hasLocalStorage,
   hasResizeObserver,
   hasWindow,
   isBrowser,
@@ -22,12 +23,14 @@ describe('DOM utility helpers', () => {
   const originalDocument = globalThis.document;
   const originalIntersectionObserver = globalThis.IntersectionObserver;
   const originalResizeObserver = globalThis.ResizeObserver;
+  const originalLocalStorage = globalThis.localStorage;
 
   beforeEach(() => {
     globalThis.window = originalWindow;
     globalThis.document = originalDocument;
     globalThis.IntersectionObserver = originalIntersectionObserver;
     globalThis.ResizeObserver = originalResizeObserver;
+    globalThis.localStorage = originalLocalStorage;
   });
 
   describe('hasWindow', () => {
@@ -101,6 +104,19 @@ describe('DOM utility helpers', () => {
       // @ts-expect-error simulating missing API
       globalThis.ResizeObserver = undefined;
       expect(hasResizeObserver()).toBe(false);
+    });
+  });
+
+  describe('hasLocalStorage', () => {
+    it('returns true when localStorage is defined', () => {
+      globalThis.localStorage = {} as unknown as Storage;
+      expect(hasLocalStorage()).toBe(true);
+    });
+
+    it('returns false when localStorage is undefined', () => {
+      // @ts-expect-error simulating missing API
+      globalThis.localStorage = undefined;
+      expect(hasLocalStorage()).toBe(false);
     });
   });
 

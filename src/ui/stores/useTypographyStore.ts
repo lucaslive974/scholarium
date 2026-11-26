@@ -1,6 +1,6 @@
-import { getViewportWidth } from '@utils/dom';
-import { appLogger } from '@utils/logger';
+import { getViewportWidth, hasLocalStorage } from '@utils/dom';
 import { create } from 'zustand';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
 export type FontFamilyChoice = 'serif' | 'sans' | 'editorial' | 'accessible' | 'mono';
 
@@ -58,34 +58,21 @@ function getDefaultFontSize(): number {
   return 18;
 }
 
-interface StoredTypographySettings {
-  readonly fontSize?: number;
-  readonly zoomLevel?: number;
-  readonly fontFamily?: FontFamilyChoice;
-  readonly lineSpacing?: number;
-  readonly pageLayoutMode?: PageLayoutMode;
+const noopStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
+
+interface PersistedTypographyState {
+  readonly fontSize: number;
+  readonly fontFamily: FontFamilyChoice;
+  readonly lineSpacing: number;
+  readonly pageLayoutMode: PageLayoutMode;
 }
 
-function loadPersistedSettings(): StoredTypographySettings {
-  if (typeof localStorage === 'undefined') {
-    return {};
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw) as StoredTypographySettings;
-  } catch {
-    return {};
-  }
-}
-
-function persistSettings(settings: StoredTypographySettings): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch (err) {
-    appLogger.warn(`Failed to persist typography settings: ${String(err)}`, 'settings');
-  }
+function isFontFamilyChoice(value: unknown): value is FontFamilyChoice {
+  return typeof value === 'string' && value in FONT_FAMILY_DEFINITIONS;
 }
 
 export interface TypographyState {
@@ -112,120 +99,110 @@ export interface TypographyState {
   reset(): void;
 }
 
-const initialSaved = loadPersistedSettings();
-const initialFontSize =
-  initialSaved.fontSize &&
-  initialSaved.fontSize >= MIN_FONT_SIZE &&
-  initialSaved.fontSize <= MAX_FONT_SIZE
-    ? initialSaved.fontSize
-    : getDefaultFontSize();
-const initialFont: FontFamilyChoice = initialSaved.fontFamily ?? 'serif';
-const initialSpacing = initialSaved.lineSpacing ?? 1.85;
-const initialPageLayoutMode: PageLayoutMode =
-  initialSaved.pageLayoutMode === 'continuous' ? 'continuous' : 'separated';
-
-export const useTypographyStore = create<TypographyState>((set, get) => ({
-  fontSize: initialFontSize,
-  zoomLevel: 1.0,
-  settledZoomLevel: 1.0,
-  fontFamily: initialFont,
-  lineSpacing: initialSpacing,
-  pageLayoutMode: initialPageLayoutMode,
-  isAppearancePopoverOpen: false,
-
-  setFontSize: (fontSize) => {
-    const clamped = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(fontSize)));
-    set({ fontSize: clamped });
-    persistSettings({
-      fontSize: clamped,
-      zoomLevel: get().zoomLevel,
-      fontFamily: get().fontFamily,
-      lineSpacing: get().lineSpacing,
-      pageLayoutMode: get().pageLayoutMode,
-    });
-  },
-
-  increaseFontSize: (step = 1) => {
-    get().setFontSize(get().fontSize + step);
-  },
-
-  decreaseFontSize: (step = 1) => {
-    get().setFontSize(get().fontSize - step);
-  },
-
-  setZoomLevel: (zoomLevel) => {
-    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(zoomLevel.toFixed(2))));
-    set({ zoomLevel: clamped });
-  },
-
-  setSettledZoomLevel: (zoomLevel) => {
-    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(zoomLevel.toFixed(2))));
-    set({ settledZoomLevel: clamped });
-  },
-
-  increaseZoom: (step = 0.05) => {
-    get().setZoomLevel(get().zoomLevel + step);
-  },
-
-  decreaseZoom: (step = 0.05) => {
-    get().setZoomLevel(get().zoomLevel - step);
-  },
-
-  setFontFamily: (fontFamily) => {
-    set({ fontFamily });
-    persistSettings({
-      fontSize: get().fontSize,
-      zoomLevel: get().zoomLevel,
-      fontFamily,
-      lineSpacing: get().lineSpacing,
-      pageLayoutMode: get().pageLayoutMode,
-    });
-  },
-
-  setLineSpacing: (lineSpacing) => {
-    set({ lineSpacing });
-    persistSettings({
-      fontSize: get().fontSize,
-      zoomLevel: get().zoomLevel,
-      fontFamily: get().fontFamily,
-      lineSpacing,
-      pageLayoutMode: get().pageLayoutMode,
-    });
-  },
-
-  setPageLayoutMode: (pageLayoutMode) => {
-    set({ pageLayoutMode });
-    persistSettings({
-      fontSize: get().fontSize,
-      zoomLevel: get().zoomLevel,
-      fontFamily: get().fontFamily,
-      lineSpacing: get().lineSpacing,
-      pageLayoutMode,
-    });
-  },
-
-  toggleAppearancePopover: () =>
-    set((state) => ({ isAppearancePopoverOpen: !state.isAppearancePopoverOpen })),
-
-  setAppearancePopoverOpen: (isAppearancePopoverOpen) => set({ isAppearancePopoverOpen }),
-
-  reset: () => {
-    const defaultSize = getDefaultFontSize();
-    set({
-      fontSize: defaultSize,
+export const useTypographyStore = create<TypographyState>()(
+  persist(
+    (set, get) => ({
+      fontSize: getDefaultFontSize(),
       zoomLevel: 1.0,
       settledZoomLevel: 1.0,
       fontFamily: 'serif',
       lineSpacing: 1.85,
       pageLayoutMode: 'separated',
       isAppearancePopoverOpen: false,
-    });
-    persistSettings({
-      fontSize: defaultSize,
-      zoomLevel: 1.0,
-      fontFamily: 'serif',
-      lineSpacing: 1.85,
-      pageLayoutMode: 'separated',
-    });
-  },
-}));
+
+      setFontSize: (fontSize) => {
+        const clamped = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(fontSize)));
+        set({ fontSize: clamped });
+      },
+
+      increaseFontSize: (step = 1) => {
+        get().setFontSize(get().fontSize + step);
+      },
+
+      decreaseFontSize: (step = 1) => {
+        get().setFontSize(get().fontSize - step);
+      },
+
+      setZoomLevel: (zoomLevel) => {
+        const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(zoomLevel.toFixed(2))));
+        set({ zoomLevel: clamped });
+      },
+
+      setSettledZoomLevel: (zoomLevel) => {
+        const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(zoomLevel.toFixed(2))));
+        set({ settledZoomLevel: clamped });
+      },
+
+      increaseZoom: (step = 0.05) => {
+        get().setZoomLevel(get().zoomLevel + step);
+      },
+
+      decreaseZoom: (step = 0.05) => {
+        get().setZoomLevel(get().zoomLevel - step);
+      },
+
+      setFontFamily: (fontFamily) => set({ fontFamily }),
+
+      setLineSpacing: (lineSpacing) => set({ lineSpacing }),
+
+      setPageLayoutMode: (pageLayoutMode) => set({ pageLayoutMode }),
+
+      toggleAppearancePopover: () =>
+        set((state) => ({ isAppearancePopoverOpen: !state.isAppearancePopoverOpen })),
+
+      setAppearancePopoverOpen: (isAppearancePopoverOpen) => set({ isAppearancePopoverOpen }),
+
+      reset: () =>
+        set({
+          fontSize: getDefaultFontSize(),
+          zoomLevel: 1.0,
+          settledZoomLevel: 1.0,
+          fontFamily: 'serif',
+          lineSpacing: 1.85,
+          pageLayoutMode: 'separated',
+          isAppearancePopoverOpen: false,
+        }),
+    }),
+    {
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => (hasLocalStorage() ? localStorage : noopStorage)),
+      partialize: (state): PersistedTypographyState => ({
+        fontSize: state.fontSize,
+        fontFamily: state.fontFamily,
+        lineSpacing: state.lineSpacing,
+        pageLayoutMode: state.pageLayoutMode,
+      }),
+      merge: (persistedState, currentState) => {
+        const saved = persistedState as Partial<PersistedTypographyState> | undefined;
+        if (!saved) return currentState;
+
+        const fontSize =
+          typeof saved.fontSize === 'number' &&
+          saved.fontSize >= MIN_FONT_SIZE &&
+          saved.fontSize <= MAX_FONT_SIZE
+            ? saved.fontSize
+            : currentState.fontSize;
+
+        const fontFamily = isFontFamilyChoice(saved.fontFamily)
+          ? saved.fontFamily
+          : currentState.fontFamily;
+
+        const lineSpacing =
+          typeof saved.lineSpacing === 'number' ? saved.lineSpacing : currentState.lineSpacing;
+
+        const pageLayoutMode: PageLayoutMode =
+          saved.pageLayoutMode === 'continuous' || saved.pageLayoutMode === 'separated'
+            ? saved.pageLayoutMode
+            : currentState.pageLayoutMode;
+
+        return {
+          ...currentState,
+          fontSize,
+          fontFamily,
+          lineSpacing,
+          pageLayoutMode,
+        };
+      },
+    }
+  )
+);

@@ -36,6 +36,11 @@ export const hasIntersectionObserver = (): boolean => typeof IntersectionObserve
 export const hasResizeObserver = (): boolean => typeof ResizeObserver !== 'undefined';
 
 /**
+ * Returns true if the localStorage API is available in the current runtime.
+ */
+export const hasLocalStorage = (): boolean => typeof localStorage !== 'undefined';
+
+/**
  * Safely queries a single DOM element matching the selector.
  * Returns null in non-browser runtimes or when the element is not found.
  */
