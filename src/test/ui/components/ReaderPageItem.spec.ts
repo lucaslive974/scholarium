@@ -1,5 +1,6 @@
 import { ReaderPageHeader } from '@components/reader/ReaderPageHeader';
 import { ReaderPageItem } from '@components/reader/ReaderPageItem';
+import { getReaderStreamContentClass } from '@components/reader/ReaderStream';
 import { BookFormat } from '@domain/types';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import React from 'react';
@@ -92,5 +93,86 @@ describe('ReaderPageItem running header and chapter header behavior', () => {
     expect(markup).not.toContain('<h2');
     expect(markup).not.toContain('Chapter 2: Motion</h2>');
     expect(markup).toContain('data-testid="reader-page-pdf-2"');
+  });
+
+  it('omits visual page separator for EPUB in continuous layout mode', () => {
+    const markup = renderItem({
+      bookFormat: BookFormat.EPUB,
+      pageLayoutMode: 'continuous',
+    });
+
+    expect(markup).not.toContain('role="separator"');
+    expect(markup).not.toContain('data-testid="epub-page-separator-2"');
+  });
+
+  it('renders visual page separator indicator for EPUB in separated layout mode', () => {
+    const markup = renderItem({
+      bookFormat: BookFormat.EPUB,
+      pageLayoutMode: 'separated',
+    });
+
+    expect(markup).toContain('role="separator"');
+    expect(markup).toContain('data-testid="epub-page-separator-2"');
+    expect(markup).toContain('Page 2');
+  });
+
+  it('omits visual page separator on the final EPUB page in separated layout mode', () => {
+    const markup = renderItem({
+      bookFormat: BookFormat.EPUB,
+      page: { ...defaultPage, pageNumber: 10 },
+      totalPages: 10,
+      pageLayoutMode: 'separated',
+    });
+
+    expect(markup).not.toContain('role="separator"');
+  });
+
+  it('renders PDF page without individual sheet border and shadow in continuous mode', () => {
+    const markup = renderItem({
+      bookFormat: BookFormat.PDF,
+      pageLayoutMode: 'continuous',
+    });
+
+    expect(markup).toContain('data-page-number="2"');
+    expect(markup).not.toContain('shadow-md');
+    expect(markup).not.toContain('border-line-subtle');
+  });
+
+  it('renders PDF page as an individual separated sheet in separated mode', () => {
+    const markup = renderItem({
+      bookFormat: BookFormat.PDF,
+      pageLayoutMode: 'separated',
+    });
+
+    expect(markup).toContain('data-page-number="2"');
+    expect(markup).toContain('shadow-md');
+    expect(markup).toContain('border-line-subtle');
+    expect(markup).toContain('rounded-md');
+  });
+});
+
+describe('getReaderStreamContentClass', () => {
+  it('returns continuous ribbon classes for PDF in continuous mode', () => {
+    const cls = getReaderStreamContentClass(true, 'continuous');
+    expect(cls).toContain('shadow-md');
+    expect(cls).toContain('bg-surface');
+    expect(cls).not.toContain('gap-6');
+  });
+
+  it('returns spaced container classes without outer ribbon for PDF in separated mode', () => {
+    const cls = getReaderStreamContentClass(true, 'separated');
+    expect(cls).toContain('gap-6');
+    expect(cls).not.toContain('shadow-md');
+    expect(cls).not.toContain('bg-surface');
+  });
+
+  it('returns seamless flow spacing for EPUB in continuous mode', () => {
+    const cls = getReaderStreamContentClass(false, 'continuous');
+    expect(cls).toContain('gap-6');
+  });
+
+  it('returns separated spacing for EPUB in separated mode', () => {
+    const cls = getReaderStreamContentClass(false, 'separated');
+    expect(cls).toContain('gap-12');
   });
 });

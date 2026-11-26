@@ -1,30 +1,21 @@
-import type { Highlight } from '@domain/Highlight';
 import { usePdfPageRenderer } from '@hooks/usePdfPageRenderer';
 import { memo } from 'react';
 import { ParagraphMarginNotes } from './ParagraphMarginNotes';
 import { PdfHighlightLayer } from './PdfHighlightLayer';
+import type { ReaderPageRendererProps } from './ReaderPageEpub';
 
-export interface ReaderPagePdfProps {
-  readonly pageNumber: number;
-  readonly paragraphs: readonly string[];
-  readonly highlights: readonly Highlight[];
-  readonly cssFontFamily?: string;
-  readonly fontSize?: number;
-  readonly lineSpacing?: number;
-  readonly onHighlightClick: (highlight: Highlight, coords: { x: number; y: number }) => void;
-  readonly onHighlightContextMenu: (e: React.MouseEvent, text: string, pageNumber: number) => void;
-}
+export type ReaderPagePdfProps = Pick<
+  ReaderPageRendererProps,
+  'page' | 'highlights' | 'onHighlightClick' | 'onHighlightContextMenu'
+>;
 
 export const ReaderPagePdf = memo(function ReaderPagePdf({
-  pageNumber,
-  paragraphs: _paragraphs,
+  page,
   highlights,
-  cssFontFamily: _cssFontFamily,
-  fontSize: _fontSize,
-  lineSpacing: _lineSpacing,
   onHighlightClick,
   onHighlightContextMenu,
 }: ReaderPagePdfProps) {
+  const { pageNumber } = page;
   const { containerRef, canvasRef, textLayerRef, pageNotes, isNearViewport } = usePdfPageRenderer({
     pageNumber,
     highlights,

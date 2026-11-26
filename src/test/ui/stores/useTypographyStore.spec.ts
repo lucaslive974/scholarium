@@ -18,6 +18,7 @@ describe('useTypographyStore', () => {
     expect(state.fontSize).toBeLessThanOrEqual(MAX_FONT_SIZE);
     expect(state.zoomLevel).toBe(1.0);
     expect(state.fontFamily).toBe('serif');
+    expect(state.pageLayoutMode).toBe('separated');
     expect(state.isAppearancePopoverOpen).toBe(false);
   });
 
@@ -69,6 +70,16 @@ describe('useTypographyStore', () => {
     expect(useTypographyStore.getState().fontFamily).toBe('mono');
   });
 
+  it('switches page layout mode between continuous and separated', () => {
+    expect(useTypographyStore.getState().pageLayoutMode).toBe('separated');
+
+    useTypographyStore.getState().setPageLayoutMode('continuous');
+    expect(useTypographyStore.getState().pageLayoutMode).toBe('continuous');
+
+    useTypographyStore.getState().setPageLayoutMode('separated');
+    expect(useTypographyStore.getState().pageLayoutMode).toBe('separated');
+  });
+
   it('toggles appearance popover', () => {
     expect(useTypographyStore.getState().isAppearancePopoverOpen).toBe(false);
     useTypographyStore.getState().toggleAppearancePopover();
@@ -81,6 +92,7 @@ describe('useTypographyStore', () => {
     useTypographyStore.getState().setFontSize(30);
     useTypographyStore.getState().setZoomLevel(2.0);
     useTypographyStore.getState().setFontFamily('mono');
+    useTypographyStore.getState().setPageLayoutMode('continuous');
     useTypographyStore.getState().setAppearancePopoverOpen(true);
 
     useTypographyStore.getState().reset();
@@ -88,6 +100,7 @@ describe('useTypographyStore', () => {
     const state = useTypographyStore.getState();
     expect(state.zoomLevel).toBe(1.0);
     expect(state.fontFamily).toBe('serif');
+    expect(state.pageLayoutMode).toBe('separated');
     expect(state.isAppearancePopoverOpen).toBe(false);
   });
 });

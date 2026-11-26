@@ -8,8 +8,26 @@ import type { DocumentPage } from '@ports/IReaderService';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { type LoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
+import { type PageLayoutMode, useTypographyStore } from '@stores/useTypographyStore';
 import { memo, type Ref, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
+
+/**
+ * Returns the container utility classes for the document stream content area
+ * based on format (PDF vs EPUB) and visual page layout mode.
+ */
+export function getReaderStreamContentClass(
+  isPdf: boolean,
+  pageLayoutMode: PageLayoutMode
+): string {
+  const isSeparated = pageLayoutMode === 'separated';
+  if (isPdf) {
+    return isSeparated
+      ? 'flex flex-col gap-6'
+      : 'flex flex-col shadow-md rounded-md overflow-hidden bg-surface';
+  }
+  return isSeparated ? 'flex flex-col gap-12' : 'flex flex-col gap-6';
+}
 
 /**
  * Builds the complete list of pages (1..totalPages) for the document stream,
@@ -47,6 +65,7 @@ export const ReaderStream = memo(function ReaderStream({ ref }: ReaderStreamProp
   const getHighlightsForPage = useHighlightsByPage();
   const setSelectedHighlightId = useHighlightStore((s) => s.setSelectedHighlightId);
   const openHighlightPopover = useReaderUIStore((s) => s.openHighlightPopover);
+  const pageLayoutMode = useTypographyStore((s) => s.pageLayoutMode);
 
   const scrollContainerRef = useRef<HTMLElement>(null);
   const contentAreaRef = useRef<HTMLDivElement>(null);
@@ -99,11 +118,7 @@ export const ReaderStream = memo(function ReaderStream({ ref }: ReaderStreamProp
       <div ref={wrapperRef} className="mx-auto" style={wrapperStyle}>
         <div
           ref={contentAreaRef}
-          className={
-            isPdf
-              ? 'flex flex-col shadow-md rounded-md overflow-hidden bg-surface'
-              : 'flex flex-col gap-12'
-          }
+          className={getReaderStreamContentClass(isPdf, pageLayoutMode)}
           style={contentStyle}
         >
           {streamPages.map((page) => {
@@ -121,6 +136,7 @@ export const ReaderStream = memo(function ReaderStream({ ref }: ReaderStreamProp
                 bookTitle={document.bookTitle}
                 bookAuthor={document.bookAuthor}
                 bookFormat={document.format ?? BookFormat.EPUB}
+                pageLayoutMode={pageLayoutMode}
                 highlights={getHighlightsForPage(page.pageNumber)}
                 showChapterHeader={showChapterHeader}
                 onHighlightClick={handleHighlightClick}
