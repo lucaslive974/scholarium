@@ -2,6 +2,7 @@ import { useTypographyStore } from '@stores/useTypographyStore';
 import { Popover } from '@ui';
 import { memo } from 'react';
 import { ReaderFontSizeControl } from './ReaderFontSizeControl';
+import { ReaderPageLayoutControl } from './ReaderPageLayoutControl';
 import { ReaderTypefaceSelector } from './ReaderTypefaceSelector';
 import { ReaderZoomControl } from './ReaderZoomControl';
 
@@ -19,11 +20,13 @@ export const ReaderAppearancePopover = memo(function ReaderAppearancePopover({
   const fontSize = useTypographyStore((s) => s.fontSize);
   const zoomLevel = useTypographyStore((s) => s.zoomLevel);
   const fontFamily = useTypographyStore((s) => s.fontFamily);
+  const pageLayoutMode = useTypographyStore((s) => s.pageLayoutMode);
   const increaseFontSize = useTypographyStore((s) => s.increaseFontSize);
   const decreaseFontSize = useTypographyStore((s) => s.decreaseFontSize);
   const increaseZoom = useTypographyStore((s) => s.increaseZoom);
   const decreaseZoom = useTypographyStore((s) => s.decreaseZoom);
   const setFontFamily = useTypographyStore((s) => s.setFontFamily);
+  const setPageLayoutMode = useTypographyStore((s) => s.setPageLayoutMode);
   const reset = useTypographyStore((s) => s.reset);
 
   return (
@@ -51,6 +54,11 @@ export const ReaderAppearancePopover = memo(function ReaderAppearancePopover({
         zoomLevel={zoomLevel}
         onDecrease={() => decreaseZoom(0.1)}
         onIncrease={() => increaseZoom(0.1)}
+      />
+
+      <ReaderPageLayoutControl
+        pageLayoutMode={pageLayoutMode}
+        onSelectPageLayoutMode={setPageLayoutMode}
       />
 
       <ReaderTypefaceSelector fontFamily={fontFamily} onSelectFontFamily={setFontFamily} />

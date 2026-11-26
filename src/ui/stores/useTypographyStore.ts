@@ -4,6 +4,8 @@ import { create } from 'zustand';
 
 export type FontFamilyChoice = 'serif' | 'sans' | 'editorial' | 'accessible' | 'mono';
 
+export type PageLayoutMode = 'continuous' | 'separated';
+
 export interface FontFamilyDefinition {
   readonly id: FontFamilyChoice;
   readonly label: string;
@@ -61,6 +63,7 @@ interface StoredTypographySettings {
   readonly zoomLevel?: number;
   readonly fontFamily?: FontFamilyChoice;
   readonly lineSpacing?: number;
+  readonly pageLayoutMode?: PageLayoutMode;
 }
 
 function loadPersistedSettings(): StoredTypographySettings {
@@ -91,6 +94,7 @@ export interface TypographyState {
   readonly settledZoomLevel: number;
   readonly fontFamily: FontFamilyChoice;
   readonly lineSpacing: number;
+  readonly pageLayoutMode: PageLayoutMode;
   readonly isAppearancePopoverOpen: boolean;
 
   setFontSize(fontSize: number): void;
@@ -102,6 +106,7 @@ export interface TypographyState {
   decreaseZoom(step?: number): void;
   setFontFamily(fontFamily: FontFamilyChoice): void;
   setLineSpacing(lineSpacing: number): void;
+  setPageLayoutMode(pageLayoutMode: PageLayoutMode): void;
   toggleAppearancePopover(): void;
   setAppearancePopoverOpen(open: boolean): void;
   reset(): void;
@@ -116,6 +121,8 @@ const initialFontSize =
     : getDefaultFontSize();
 const initialFont: FontFamilyChoice = initialSaved.fontFamily ?? 'serif';
 const initialSpacing = initialSaved.lineSpacing ?? 1.85;
+const initialPageLayoutMode: PageLayoutMode =
+  initialSaved.pageLayoutMode === 'continuous' ? 'continuous' : 'separated';
 
 export const useTypographyStore = create<TypographyState>((set, get) => ({
   fontSize: initialFontSize,
@@ -123,6 +130,7 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
   settledZoomLevel: 1.0,
   fontFamily: initialFont,
   lineSpacing: initialSpacing,
+  pageLayoutMode: initialPageLayoutMode,
   isAppearancePopoverOpen: false,
 
   setFontSize: (fontSize) => {
@@ -133,6 +141,7 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
       zoomLevel: get().zoomLevel,
       fontFamily: get().fontFamily,
       lineSpacing: get().lineSpacing,
+      pageLayoutMode: get().pageLayoutMode,
     });
   },
 
@@ -169,6 +178,7 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
       zoomLevel: get().zoomLevel,
       fontFamily,
       lineSpacing: get().lineSpacing,
+      pageLayoutMode: get().pageLayoutMode,
     });
   },
 
@@ -179,6 +189,18 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
       zoomLevel: get().zoomLevel,
       fontFamily: get().fontFamily,
       lineSpacing,
+      pageLayoutMode: get().pageLayoutMode,
+    });
+  },
+
+  setPageLayoutMode: (pageLayoutMode) => {
+    set({ pageLayoutMode });
+    persistSettings({
+      fontSize: get().fontSize,
+      zoomLevel: get().zoomLevel,
+      fontFamily: get().fontFamily,
+      lineSpacing: get().lineSpacing,
+      pageLayoutMode,
     });
   },
 
@@ -195,6 +217,7 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
       settledZoomLevel: 1.0,
       fontFamily: 'serif',
       lineSpacing: 1.85,
+      pageLayoutMode: 'separated',
       isAppearancePopoverOpen: false,
     });
     persistSettings({
@@ -202,6 +225,7 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
       zoomLevel: 1.0,
       fontFamily: 'serif',
       lineSpacing: 1.85,
+      pageLayoutMode: 'separated',
     });
   },
 }));
