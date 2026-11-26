@@ -2,6 +2,7 @@ import type { Highlight } from '@domain/Highlight';
 import { BookFormat } from '@domain/types';
 import type { DocumentPage } from '@ports/IReaderService';
 import type { PageLayoutMode } from '@stores/useTypographyStore';
+import { cn } from '@utils/cn';
 import { memo } from 'react';
 import { ReaderPageEpub, type ReaderPageRendererProps } from './ReaderPageEpub';
 import { ReaderPagePdf } from './ReaderPagePdf';
@@ -22,13 +23,12 @@ export const PAGE_RENDERERS: Record<BookFormat, PageRendererComponent> = {
 export function getReaderPageArticleClass(isPdf: boolean, pageLayoutMode: PageLayoutMode): string {
   const isSeparated = pageLayoutMode === 'separated';
   if (isPdf) {
-    return isSeparated
-      ? 'w-full flex flex-col rounded-md overflow-hidden border border-line-subtle shadow-md bg-surface'
-      : 'w-full flex flex-col';
+    return cn(
+      'w-full flex flex-col',
+      isSeparated && 'rounded-md overflow-hidden border border-line-subtle shadow-md bg-surface'
+    );
   }
-  return isSeparated
-    ? 'w-full min-h-225 flex flex-col gap-6 py-8'
-    : 'w-full min-h-225 flex flex-col gap-6';
+  return cn('w-full min-h-225 flex flex-col gap-6', isSeparated && 'py-8');
 }
 
 export interface ReaderPageItemProps {
