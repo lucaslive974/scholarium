@@ -49,17 +49,9 @@ export function useTransitionOverlay(
     } else {
       const remainingDelay = computeRemainingDelay(mountedAtRef.current, minDisplayMs);
 
-      const hideOverlay = () => {
-        startTransition(() => {
-          setIsMounted(false);
-        });
-      };
-
-      if (remainingDelay > 0) {
-        minDisplayTimer = setTimeout(hideOverlay, remainingDelay);
-      } else {
-        hideOverlay();
-      }
+      minDisplayTimer = setTimeout(() => {
+        startTransition(() => setIsMounted(false));
+      }, remainingDelay);
     }
 
     return () => {
