@@ -2,7 +2,7 @@ import {
   type UseTransitionOverlayOptions,
   useTransitionOverlay,
 } from '@hooks/useTransitionOverlay';
-import { memo, type ReactNode } from 'react';
+import { memo, type ReactNode, ViewTransition } from 'react';
 
 export interface TransitionOverlayProps extends UseTransitionOverlayOptions {
   readonly children?: ReactNode;
@@ -14,14 +14,12 @@ export interface TransitionOverlayProps extends UseTransitionOverlayOptions {
 }
 
 /**
- * Hardware-accelerated full-screen or container overlay that smoothly fades in and out.
- * Maintains clicks blocked during opacity transition and cleanly unmounts from DOM upon completion.
+ * Full-screen or container overlay animated via React 19 <ViewTransition>.
+ * Preserves anti-flicker minDisplayMs while delegating fade-in/fade-out to the browser View Transitions API.
  */
 export const TransitionOverlay = memo(function TransitionOverlay({
   isVisible = false,
-  durationMs,
   minDisplayMs,
-  onExited,
   children,
   className = '',
   zIndexClass = 'z-30',
@@ -29,9 +27,7 @@ export const TransitionOverlay = memo(function TransitionOverlay({
 }: TransitionOverlayProps) {
   const overlay = useTransitionOverlay({
     isVisible,
-    durationMs,
     minDisplayMs,
-    onExited,
   });
 
   if (!overlay.isMounted) {
@@ -39,13 +35,10 @@ export const TransitionOverlay = memo(function TransitionOverlay({
   }
 
   return (
-    <div
-      data-testid={testId}
-      aria-hidden={overlay.opacity === 0}
-      className={`fixed inset-0 ${zIndexClass} ${className}`}
-      style={overlay.style}
-    >
-      {children}
-    </div>
+    <ViewTransition enter="overlay-fade" exit="overlay-fade">
+      <div data-testid={testId} className={`fixed inset-0 ${zIndexClass} ${className}`}>
+        {children}
+      </div>
+    </ViewTransition>
   );
 });

@@ -43,7 +43,6 @@ function AppShell() {
       <TransitionOverlay
         isVisible={startup.isOverlayVisible}
         minDisplayMs={startup.minDisplayMs}
-        durationMs={450}
         zIndexClass="z-50"
         testId="startup-transition-overlay"
       >

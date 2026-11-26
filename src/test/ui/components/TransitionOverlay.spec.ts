@@ -24,7 +24,6 @@ describe('TransitionOverlay component', () => {
           isVisible: true,
           className: 'bg-canvas flex items-center justify-center',
           zIndexClass: 'z-50',
-          durationMs: 400,
         },
         React.createElement('p', null, 'Preparing Book...')
       )
@@ -33,9 +32,6 @@ describe('TransitionOverlay component', () => {
     expect(markup).toContain('data-testid="transition-overlay"');
     expect(markup).toContain('fixed inset-0 z-50 bg-canvas');
     expect(markup).toContain('Preparing Book...');
-    expect(markup).toContain('opacity:1');
-    expect(markup).toContain('transition:opacity 400ms');
-    expect(markup).toContain('pointer-events:auto');
   });
 
   it('applies default z-index class when zIndexClass is omitted', () => {

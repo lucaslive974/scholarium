@@ -293,3 +293,10 @@ body {
 .reader-cursor-grabbing * {
   cursor: grabbing !important;
 }
+
+/* React 19 <ViewTransition> overlay fade animations */
+::view-transition-old(.overlay-fade),
+::view-transition-new(.overlay-fade) {
+  animation-duration: 350ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
