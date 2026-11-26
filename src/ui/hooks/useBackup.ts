@@ -65,7 +65,7 @@ export interface BackupOperationState {
 }
 
 const INITIAL_OPERATION_STATE: BackupOperationState = {
-  state: { status: 'idle' },
+  state: { status: 'loading' },
   statusMessage: null,
   error: null,
 };
