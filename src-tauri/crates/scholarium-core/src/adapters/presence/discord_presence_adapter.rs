@@ -73,7 +73,11 @@ pub type NativeDiscordPresenceAdapter = DiscordPresenceAdapter<NativeDiscordPres
 impl NativeDiscordPresenceAdapter {
     pub fn create_default(client_id: Option<u64>, enabled: bool) -> Option<Self> {
         let cid = resolve_discord_client_id(client_id)?;
-        Some(Self::new(cid, enabled, NativeDiscordPresenceClient::new(cid)))
+        Some(Self::new(
+            cid,
+            enabled,
+            NativeDiscordPresenceClient::new(cid),
+        ))
     }
 }
 
