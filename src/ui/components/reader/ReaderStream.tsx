@@ -9,6 +9,7 @@ import { useHighlightStore } from '@stores/useHighlightStore';
 import { type LoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { type PageLayoutMode, useTypographyStore } from '@stores/useTypographyStore';
+import { cn } from '@utils/cn';
 import { memo, type Ref, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
 
@@ -22,11 +23,12 @@ export function getReaderStreamContentClass(
 ): string {
   const isSeparated = pageLayoutMode === 'separated';
   if (isPdf) {
-    return isSeparated
-      ? 'flex flex-col gap-6'
-      : 'flex flex-col shadow-md rounded-md overflow-hidden bg-surface';
+    return cn(
+      'flex flex-col',
+      isSeparated ? 'gap-6' : 'shadow-md rounded-md overflow-hidden bg-surface'
+    );
   }
-  return isSeparated ? 'flex flex-col gap-12' : 'flex flex-col gap-6';
+  return cn('flex flex-col', isSeparated ? 'gap-12' : 'gap-6');
 }
 
 /**
@@ -109,11 +111,11 @@ export const ReaderStream = memo(function ReaderStream({ ref }: ReaderStreamProp
   return (
     <main
       ref={scrollContainerRef}
-      className={
-        isPdf
-          ? `flex-1 min-h-0 w-full overflow-auto py-4 sm:py-8 px-2 sm:px-4 ${gestureClassName}`
-          : `flex-1 min-h-0 w-full overflow-auto py-12 sm:py-20 px-4 sm:px-8 ${gestureClassName}`
-      }
+      className={cn(
+        'flex-1 min-h-0 w-full overflow-auto',
+        isPdf ? 'py-4 sm:py-8 px-2 sm:px-4' : 'py-12 sm:py-20 px-4 sm:px-8',
+        gestureClassName
+      )}
     >
       <div ref={wrapperRef} className="mx-auto" style={wrapperStyle}>
         <div

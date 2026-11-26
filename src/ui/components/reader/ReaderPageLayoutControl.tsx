@@ -1,4 +1,5 @@
 import type { PageLayoutMode } from '@stores/useTypographyStore';
+import { cn } from '@utils/cn';
 import { memo } from 'react';
 
 export interface ReaderPageLayoutControlProps {
@@ -28,11 +29,12 @@ export const ReaderPageLayoutControl = memo(function ReaderPageLayoutControl({
               key={option.id}
               type="button"
               aria-pressed={isSelected}
-              className={`flex-1 text-center py-1 rounded-md text-xs transition cursor-pointer select-none ${
+              className={cn(
+                'flex-1 text-center py-1 rounded-md text-xs transition cursor-pointer select-none border',
                 isSelected
-                  ? 'bg-surface text-tx-main shadow-2xs font-semibold border border-line-subtle/80'
-                  : 'text-tx-secondary hover:text-tx-main hover:bg-surface/60 border border-transparent'
-              }`}
+                  ? 'bg-surface text-tx-main shadow-2xs font-semibold border-line-subtle/80'
+                  : 'text-tx-secondary hover:text-tx-main hover:bg-surface/60 border-transparent'
+              )}
               onClick={() => onSelectPageLayoutMode(option.id)}
             >
               {option.label}
