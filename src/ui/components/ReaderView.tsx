@@ -53,7 +53,6 @@ export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderView
       />
       <TransitionOverlay
         isVisible={!isReady}
-        durationMs={250}
         minDisplayMs={3000}
         zIndexClass="z-40"
         testId="reader-transition-overlay"

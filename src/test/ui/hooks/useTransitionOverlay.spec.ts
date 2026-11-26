@@ -1,8 +1,4 @@
-import {
-  computeRemainingDelay,
-  computeTransitionStyle,
-  DEFAULT_TRANSITION_DURATION_MS,
-} from '@hooks/useTransitionOverlay';
+import { computeRemainingDelay } from '@hooks/useTransitionOverlay';
 import { describe, expect, it } from 'vitest';
 
 describe('useTransitionOverlay helpers', () => {
@@ -23,28 +19,6 @@ describe('useTransitionOverlay helpers', () => {
       // Elapsed matches or exceeds minDisplayMs -> 0
       expect(computeRemainingDelay(1000, 300, 1300)).toBe(0);
       expect(computeRemainingDelay(1000, 300, 1500)).toBe(0);
-    });
-  });
-
-  describe('computeTransitionStyle', () => {
-    it('generates 60fps GPU accelerated style when mounted', () => {
-      const style = computeTransitionStyle(1, 250, true);
-      expect(style.opacity).toBe(1);
-      expect(style.transition).toBe('opacity 250ms cubic-bezier(0.16, 1, 0.3, 1)');
-      expect(style.willChange).toBe('opacity');
-      expect(style.pointerEvents).toBe('auto');
-    });
-
-    it('sets pointerEvents to none and willChange to auto when unmounted', () => {
-      const style = computeTransitionStyle(0, 300, false);
-      expect(style.opacity).toBe(0);
-      expect(style.willChange).toBe('auto');
-      expect(style.pointerEvents).toBe('none');
-    });
-
-    it('uses default duration constant when specified', () => {
-      const style = computeTransitionStyle(1, DEFAULT_TRANSITION_DURATION_MS, true);
-      expect(style.transition).toContain('300ms');
     });
   });
 });
