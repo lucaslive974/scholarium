@@ -1,4 +1,5 @@
 import { LoadingSplash, TransitionOverlay } from '@ui';
+import { Activity } from 'react';
 import { CloudSyncOverlay } from './components/CloudSyncOverlay';
 import { LibraryView } from './components/LibraryView';
 import { ReaderView } from './components/ReaderView';
@@ -13,15 +14,15 @@ function AppRouter() {
   const { currentView, selectedBook, openReader, closeReader } = useNavigation();
   useSystemHandler({ onOpenBook: openReader });
 
-  if (currentView === 'reader') {
-    return <ReaderView book={selectedBook} onClose={closeReader} />;
-  }
-
-  if (currentView === 'settings') {
-    return <SettingsView />;
-  }
-
-  return <LibraryView />;
+  return (
+    <>
+      <Activity mode={currentView === 'library' ? 'visible' : 'hidden'}>
+        <LibraryView />
+      </Activity>
+      {currentView === 'reader' && <ReaderView book={selectedBook} onClose={closeReader} />}
+      {currentView === 'settings' && <SettingsView />}
+    </>
+  );
 }
 
 function AppShell() {
